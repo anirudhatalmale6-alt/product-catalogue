@@ -1,6 +1,21 @@
 <?php
 /** @var array $product @var array $images @var array $specGroups @var array $related */
 $primary = $images[0]['file_path'] ?? null;
+
+// The weight field is shown in the specification table, but only when the
+// admin has not already entered a weight of their own as a spec row -
+// otherwise the same figure is printed twice, sometimes with different
+// rounding.
+$hasWeightSpec = false;
+foreach ($specGroups as $rows) {
+    foreach ($rows as $r) {
+        if (stripos($r['spec_name'], 'weight') !== false) {
+            $hasWeightSpec = true;
+            break 2;
+        }
+    }
+}
+$showWeightRow = $product['weight_grams'] !== null && !$hasWeightSpec;
 ?>
 
 <div class="page-head slim">
@@ -93,7 +108,7 @@ $primary = $images[0]['file_path'] ?? null;
       </section>
     <?php endif; ?>
 
-    <?php if ($specGroups): ?>
+    <?php if ($specGroups || $showWeightRow): ?>
       <section class="section" id="specs">
         <h2>Technical specifications</h2>
         <?php foreach ($specGroups as $groupName => $rows): ?>
@@ -108,19 +123,16 @@ $primary = $images[0]['file_path'] ?? null;
                 <td><?= e($r['spec_value']) ?></td>
               </tr>
             <?php endforeach; ?>
-            <?php if ($product['weight_grams'] !== null && $groupName === array_key_last($specGroups)): ?>
-              <tr><th scope="row">Weight</th><td><?= number_format((int) $product['weight_grams'] / 1000, 2) ?> kg</td></tr>
-            <?php endif; ?>
             </tbody>
           </table>
         <?php endforeach; ?>
-      </section>
-    <?php elseif ($product['weight_grams'] !== null): ?>
-      <section class="section">
-        <h2>Technical specifications</h2>
-        <table class="spec-table"><tbody>
-          <tr><th scope="row">Weight</th><td><?= number_format((int) $product['weight_grams'] / 1000, 2) ?> kg</td></tr>
-        </tbody></table>
+
+        <?php if ($showWeightRow): ?>
+          <?php if (count($specGroups) > 1): ?><h3 class="spec-group">General</h3><?php endif; ?>
+          <table class="spec-table"><tbody>
+            <tr><th scope="row">Weight</th><td><?= number_format((int) $product['weight_grams'] / 1000, 2) ?> kg</td></tr>
+          </tbody></table>
+        <?php endif; ?>
       </section>
     <?php endif; ?>
   </div>
