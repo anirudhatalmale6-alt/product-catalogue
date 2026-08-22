@@ -1,0 +1,29 @@
+# ---------------------------------------------------------------------------
+# Only used if you upload the WHOLE project into your web root (public_html)
+# instead of pointing the domain at the public/ folder.
+#
+# It does two things:
+#   1. serves the site out of public/ so visitors never see app/ or sql/
+#   2. blocks direct access to the folders that hold code and credentials
+#
+# Pointing the domain straight at public/ is still the better setup - see
+# DEPLOYMENT.md. This file is the fallback for hosts that do not allow it.
+# ---------------------------------------------------------------------------
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Never let anyone reach the application folders directly.
+    RewriteRule ^(app|sql|tools|db)/ - [F,L]
+
+    # Map everything into public/. The negative lookahead means a path that
+    # is already inside public/ is left alone, so this cannot loop.
+    RewriteRule ^$ public/index.php [L]
+    RewriteRule ^((?!public/).*)$ public/$1 [L]
+</IfModule>
+
+Options -Indexes
+
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>

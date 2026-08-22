@@ -1,0 +1,25 @@
+# ---------------------------------------------------------------------------
+# Uploads are data, never code.
+# Even if someone managed to get a .php file in here, this stops the server
+# from executing it - it would be served as plain text or refused.
+# ---------------------------------------------------------------------------
+
+php_flag engine off
+
+<IfModule mod_php.c>
+    php_flag engine off
+</IfModule>
+
+# Belt and braces: refuse to serve anything that is not an image.
+<FilesMatch "\.(?!(jpe?g|png|gif|webp|svg)$)[^.]*$">
+    Require all denied
+</FilesMatch>
+
+<FilesMatch "\.(php|php3|php4|php5|php7|php8|phtml|phar|pl|py|cgi|sh|htaccess)$">
+    Require all denied
+</FilesMatch>
+
+Options -Indexes -ExecCGI
+AddHandler default-handler .php .phtml .phar .cgi .pl .py
+RemoveHandler .php .phtml .phar
+RemoveType .php .phtml .phar

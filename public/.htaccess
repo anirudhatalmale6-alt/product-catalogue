@@ -1,0 +1,47 @@
+# ---------------------------------------------------------------------------
+# Pretty URLs. Everything that is not a real file or folder is handed to
+# index.php, which works out the route.
+# If your host has mod_rewrite switched off the site still works - the URLs
+# just look like /index.php?r=product/slug instead.
+# ---------------------------------------------------------------------------
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Uncomment and set if the site lives in a sub-folder and links misbehave.
+    # RewriteBase /catalogue/
+
+    # Send everything that is not an existing file or directory to the router.
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^ index.php [QSA,L]
+</IfModule>
+
+# --- Do not list folders ----------------------------------------------------
+Options -Indexes
+
+# --- Default document -------------------------------------------------------
+DirectoryIndex index.php
+
+# --- Security headers -------------------------------------------------------
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set Referrer-Policy "same-origin"
+</IfModule>
+
+# --- Cache static assets ----------------------------------------------------
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType text/css            "access plus 7 days"
+    ExpiresByType application/javascript "access plus 7 days"
+    ExpiresByType image/jpeg          "access plus 30 days"
+    ExpiresByType image/png           "access plus 30 days"
+    ExpiresByType image/webp          "access plus 30 days"
+    ExpiresByType image/svg+xml       "access plus 30 days"
+</IfModule>
+
+# --- Never serve dot-files --------------------------------------------------
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>

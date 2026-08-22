@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img" aria-label="No image">
+  <rect width="400" height="400" fill="#f2efeb"/>
+  <g fill="none" stroke="#cfc7bd" stroke-width="4" stroke-linejoin="round">
+    <path d="M140 165h120v90H140z"/>
+    <path d="M140 225l32-30 26 24 24-22 38 34"/>
+  </g>
+  <circle cx="172" cy="190" r="9" fill="#cfc7bd"/>
+  <text x="200" y="290" text-anchor="middle" font-family="system-ui, sans-serif"
+        font-size="18" fill="#a49a8f">No image yet</text>
+</svg>

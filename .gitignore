@@ -1,0 +1,15 @@
+# Your live database credentials - never commit this.
+app/config.php
+
+# Images uploaded through the admin panel. The sample set is committed so the
+# demo data has something to show; anything you upload yourself is not.
+public/uploads/products/*
+!public/uploads/products/sample/
+public/uploads/.gitkeep
+
+# Local noise
+*.log
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
