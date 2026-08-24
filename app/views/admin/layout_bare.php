@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex, nofollow">
 <title><?= e($title ?? 'Admin') ?></title>
 <link rel="stylesheet" href="<?= asset('css/admin.css') ?>?v=<?= @filemtime(PUBLIC_DIR . '/assets/css/admin.css') ?>">
-<link rel="icon" href="<?= asset('img/favicon.svg') ?>" type="image/svg+xml">
+<link rel="icon" href="<?= asset('img/favicon.png') ?>" type="image/png">
 </head>
 <body class="admin admin-bare">
 <?= $content ?>

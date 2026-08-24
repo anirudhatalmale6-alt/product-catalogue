@@ -7,13 +7,13 @@
 <meta name="robots" content="noindex, nofollow">
 <title><?= e($title ?? 'Admin') ?> &middot; Admin</title>
 <link rel="stylesheet" href="<?= asset('css/admin.css') ?>?v=<?= @filemtime(PUBLIC_DIR . '/assets/css/admin.css') ?>">
-<link rel="icon" href="<?= asset('img/favicon.svg') ?>" type="image/svg+xml">
+<link rel="icon" href="<?= asset('img/favicon.png') ?>" type="image/png">
 </head>
 <body class="admin">
 
 <header class="adm-top">
   <a class="adm-brand" href="<?= url('admin') ?>">
-    <span class="adm-mark" aria-hidden="true"></span>
+    <img class="adm-mark" src="<?= asset('img/favicon.png') ?>" alt="" width="64" height="64">
     <?= e(setting('site_name', 'Catalogue')) ?> <span>admin</span>
   </a>
   <button class="adm-nav-toggle" type="button" aria-expanded="false" aria-controls="adm-side">Menu</button>

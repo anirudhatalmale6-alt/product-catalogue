@@ -94,9 +94,12 @@ $showWeightRow = $product['weight_grams'] !== null && !$hasWeightSpec;
         <?php endif; ?>
       </p>
       <?php if (setting('contact_email') || setting('contact_phone')): ?>
+        <?php // The separator only belongs between two values - with just one
+              // of the pair filled in, printing it leaves a dangling dot. ?>
         <p class="enquire">To order or ask about this item, contact
           <?php if (setting('contact_email')): ?><strong><?= e(setting('contact_email')) ?></strong><?php endif; ?>
-          <?php if (setting('contact_phone')): ?> &middot; <strong><?= e(setting('contact_phone')) ?></strong><?php endif; ?>
+          <?php if (setting('contact_email') && setting('contact_phone')): ?> &middot; <?php endif; ?>
+          <?php if (setting('contact_phone')): ?><strong><?= e(setting('contact_phone')) ?></strong><?php endif; ?>
         </p>
       <?php endif; ?>
     </div>

@@ -2,7 +2,7 @@
   <form class="login-card" method="post" action="<?= url('admin/login') ?>">
     <?= csrf_field() ?>
     <div class="login-head">
-      <span class="adm-mark" aria-hidden="true"></span>
+      <img class="adm-mark" src="<?= asset('img/favicon.png') ?>" alt="" width="64" height="64">
       <h1><?= e(setting('site_name', 'Catalogue')) ?></h1>
       <p>Sign in to manage the catalogue</p>
     </div>

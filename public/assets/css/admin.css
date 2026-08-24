@@ -10,9 +10,15 @@
   --surface:    #ffffff;
   --line:       #e2e5ea;
   --line-soft:  #eef0f3;
-  --accent:     #a8451c;
-  --accent-dk:  #843415;
-  --accent-wash:#fbf0ea;
+  /* Same brand tokens as the public site - see site.css for why the
+     interactive colour on a light background is the deep gold, not the
+     bright one from the logo. */
+  --navy:       #00081c;
+  --gold:       #d9a144;
+  --gold-lt:    #e8bd76;
+  --accent:     #8a5e1b;
+  --accent-dk:  #6f4a0e;
+  --accent-wash:#fdf4e6;
   --ok:         #1c7a53;
   --ok-wash:    #e8f4ee;
   --warn:       #a3690c;
@@ -21,7 +27,7 @@
   --bad-wash:   #fbebe9;
   --info:       #2a5d9e;
   --info-wash:  #eaf1fa;
-  --sidebar:    #1b1f24;
+  --sidebar:    #00081c;
 
   --radius:    10px;
   --radius-sm: 6px;
@@ -63,11 +69,10 @@ p { margin: 0 0 .8rem; }
 }
 .adm-brand { color: #fff; font-weight: 650; display: flex; align-items: center; gap: .55rem; font-size: .98rem; }
 .adm-brand:hover { text-decoration: none; }
-.adm-brand span { color: #98a2ad; font-weight: 500; }
-.adm-mark {
-  width: 24px; height: 24px; border-radius: 6px;
-  background: linear-gradient(135deg, var(--accent) 0%, #c9603a 55%, #e0925f 100%);
-}
+.adm-brand span { color: var(--gold-lt); font-weight: 500; }
+/* The logo file carries the navy in the artwork itself, so --sidebar matches
+   it exactly and the mark sits on the bar with no visible box. */
+.adm-mark { height: 26px; width: auto; border-radius: 4px; }
 .adm-top-right { margin-left: auto; display: flex; align-items: center; gap: 1rem; font-size: .85rem; }
 .adm-view-site { color: #b9c2cc; }
 .adm-user { color: #8d97a2; display: none; }

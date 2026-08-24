@@ -127,7 +127,22 @@ files. There is no undo, so take a database backup before a big clear-out.
 - **Products per page** — 4 to 60
 - **Contact email and phone** — optional. Fill either in and product pages
   gain a line telling visitors how to enquire. Leave both blank and the line
-  disappears.
+  disappears. The phone is currently set to the number in your signature —
+  clear the field if you would rather it did not appear publicly.
+
+### The logo
+
+The logo is a file, not a setting: `public/assets/img/mikn-logo.png` in the
+header and footer, and `public/assets/img/favicon.png` for the browser tab and
+the admin bar. Replace either file with your own and the site picks it up on
+the next page load — no code change.
+
+Both were cut from the logo you sent, which has the navy baked into the
+picture rather than a transparent background. That is why the header is that
+exact navy: the artwork sits on it with no visible box. If you have the
+original as an SVG, EPS or a PNG with transparency, send it over and I will
+swap it in — that version stays sharp on a high-resolution screen and would
+let the header be any colour you like.
 
 ---
 

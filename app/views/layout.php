@@ -7,7 +7,7 @@
 <title><?= e($title ?? '') ?> &middot; <?= e(setting('site_name', 'Catalogue')) ?></title>
 <meta name="description" content="<?= e($metaDescription ?? setting('site_tagline', '')) ?>">
 <link rel="stylesheet" href="<?= asset('css/site.css') ?>?v=<?= @filemtime(PUBLIC_DIR . '/assets/css/site.css') ?>">
-<link rel="icon" href="<?= asset('img/favicon.svg') ?>" type="image/svg+xml">
+<link rel="icon" href="<?= asset('img/favicon.png') ?>" type="image/png">
 </head>
 <body>
 
@@ -16,11 +16,10 @@
 <header class="site-header">
   <div class="wrap header-inner">
     <a class="brand" href="<?= url('/') ?>">
-      <span class="brand-mark" aria-hidden="true"></span>
-      <span class="brand-text">
-        <strong><?= e(setting('site_name', 'Catalogue')) ?></strong>
-        <small><?= e(setting('site_tagline', '')) ?></small>
-      </span>
+      <?php // Swap this file for your own artwork to rebrand the header; the
+            // alt text falls back to the site name set under Settings. ?>
+      <img class="brand-logo" src="<?= asset('img/mikn-logo.png') ?>"
+           alt="<?= e(setting('site_name', 'Catalogue')) ?>" width="354" height="107">
     </a>
 
     <form class="header-search" method="get" action="<?= url('catalogue') ?>" role="search">
@@ -59,7 +58,8 @@
 <footer class="site-footer">
   <div class="wrap footer-inner">
     <div>
-      <strong><?= e(setting('site_name', 'Catalogue')) ?></strong>
+      <img class="footer-logo" src="<?= asset('img/mikn-logo.png') ?>"
+           alt="<?= e(setting('site_name', 'Catalogue')) ?>" width="354" height="107">
       <p><?= e(setting('site_tagline', '')) ?></p>
     </div>
     <div class="footer-contact">

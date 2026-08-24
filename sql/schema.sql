@@ -154,11 +154,13 @@ CREATE TABLE settings (
     PRIMARY KEY (setting_key)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Every one of these is editable from Admin -> Settings; nothing here is
+-- hard-coded anywhere else in the application.
 INSERT INTO settings (setting_key, setting_value) VALUES
-    ('site_name',       'Product Catalogue'),
-    ('site_tagline',    'Browse the full range'),
+    ('site_name',       'MIKN Consulting'),
+    ('site_tagline',    'Product catalogue'),
     ('currency_code',   'CAD'),
     ('currency_symbol', '$'),
     ('per_page',        '12'),
     ('contact_email',   ''),
-    ('contact_phone',   '');
+    ('contact_phone',   '+1 (236) 516-8502');
