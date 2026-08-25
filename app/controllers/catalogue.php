@@ -24,6 +24,17 @@ function catalogue_dispatch(array $segments): void
             catalogue_index($cat);
             return;
 
+        case 'origin':
+            // A shareable URL per country, the same page the sidebar filter
+            // produces. /origin/thailand rather than /catalogue?origin=thailand.
+            $slug = $segments[1] ?? '';
+            $org  = $slug !== '' ? OriginRepository::findBySlug($slug) : null;
+            if (!$org || (int) $org['is_active'] !== 1) {
+                not_found('That origin does not exist.');
+            }
+            catalogue_index(null, $org);
+            return;
+
         case 'product':
             catalogue_show($segments[1] ?? '');
             return;
@@ -39,7 +50,7 @@ function catalogue_dispatch(array $segments): void
 }
 
 /** Read filters out of the query string, normalising as we go. */
-function catalogue_filters(?array $category = null): array
+function catalogue_filters(?array $category = null, ?array $origin = null): array
 {
     $availability = $_GET['availability'] ?? [];
     if (is_string($availability)) {
@@ -55,9 +66,25 @@ function catalogue_filters(?array $category = null): array
         $categoryId = $c ? (int) $c['id'] : null;
     }
 
+    // ?origin=none is the "not specified yet" bucket, so it is resolved to the
+    // literal string rather than looked up and thrown away as an unknown slug.
+    $originId = null;
+    if ($origin) {
+        $originId = (int) $origin['id'];
+    } else {
+        $originSlug = trim((string) ($_GET['origin'] ?? ''));
+        if ($originSlug === 'none') {
+            $originId = 'none';
+        } elseif ($originSlug !== '') {
+            $o = OriginRepository::findBySlug($originSlug);
+            $originId = $o ? (int) $o['id'] : null;
+        }
+    }
+
     return [
         'q'            => trim((string) ($_GET['q'] ?? '')),
         'category_id'  => $categoryId,
+        'origin_id'    => $originId,
         'availability' => $availability,
         'brand'        => trim((string) ($_GET['brand'] ?? '')),
         'min_price'    => $_GET['min_price'] ?? '',
@@ -66,25 +93,32 @@ function catalogue_filters(?array $category = null): array
     ];
 }
 
-function catalogue_index(?array $category = null): void
+function catalogue_index(?array $category = null, ?array $origin = null): void
 {
-    $filters = catalogue_filters($category);
+    $filters = catalogue_filters($category, $origin);
     $page    = max(1, (int) ($_GET['page'] ?? 1));
     $perPage = (int) setting('per_page', 12);
 
     $result = ProductRepository::search($filters, $page, $perPage);
 
-    $title = $category
-        ? $category['name']
-        : ($filters['q'] !== '' ? 'Search: ' . $filters['q'] : 'All products');
+    if ($category) {
+        $title = $category['name'];
+    } elseif ($origin) {
+        $title = $origin['name'];
+    } else {
+        $title = $filters['q'] !== '' ? 'Search: ' . $filters['q'] : 'All products';
+    }
 
     view('catalogue/index', [
         'title'          => $title,
         'category'       => $category,
+        'origin'         => $origin,
         'filters'        => $filters,
         'result'         => $result,
         'categories'     => CategoryRepository::navigation(),
+        'origins'        => OriginRepository::navigation(),
         'catCounts'      => ProductRepository::countsByCategory($filters),
+        'originCounts'   => ProductRepository::countsByOrigin($filters),
         'availCounts'    => ProductRepository::countsByAvailability($filters),
         'brands'         => ProductRepository::brands(),
         'priceRange'     => ProductRepository::priceRange(),
@@ -110,5 +144,6 @@ function catalogue_show(string $slug): void
                             (int) $product['id'],
                             $product['category_id'] ? (int) $product['category_id'] : null),
         'categories' => CategoryRepository::navigation(),
+        'metaDescription' => $product['short_description'] ?: setting('site_tagline', ''),
     ]);
 }

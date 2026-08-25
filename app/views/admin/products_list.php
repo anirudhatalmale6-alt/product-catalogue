@@ -20,7 +20,7 @@
   </select>
   <select name="availability">
     <option value="">Any availability</option>
-    <?php foreach (['in_stock','low_stock','out_of_stock','preorder','discontinued'] as $st): ?>
+    <?php foreach (stock_statuses() as $st): ?>
       <option value="<?= $st ?>" <?= ($filters['availability'][0] ?? '') === $st ? 'selected' : '' ?>><?= e(stock_label($st)) ?></option>
     <?php endforeach; ?>
   </select>
@@ -44,6 +44,7 @@
       <th>Name</th>
       <th>SKU</th>
       <th>Category</th>
+      <th>Origin</th>
       <th>Price</th>
       <th>Availability</th>
       <th>Images</th>
@@ -61,11 +62,14 @@
         <?php if (!$p['is_active']): ?><span class="tag tag-muted">Hidden</span><?php endif; ?>
         <?php if ($p['is_featured']): ?><span class="tag tag-info">Featured</span><?php endif; ?>
       </td>
-      <td class="muted"><?= e($p['sku'] ?: '—') ?></td>
+      <td class="muted col-sku"><?= e($p['sku'] ?: '—') ?></td>
       <td class="muted"><?= e($p['category_name'] ?: '—') ?></td>
-      <td>
+      <td class="<?= $p['origin_name'] ? 'muted' : 'warn-text' ?>"><?= e($p['origin_name'] ?: 'Not set') ?></td>
+      <td class="mono">
         <?php if ($p['sale_price'] !== null): ?>
           <strong><?= money($p['sale_price']) ?></strong> <s class="muted"><?= money($p['price']) ?></s>
+        <?php elseif ($p['price'] === null): ?>
+          <span class="muted">On request</span>
         <?php else: ?>
           <?= money($p['price']) ?>
         <?php endif; ?>

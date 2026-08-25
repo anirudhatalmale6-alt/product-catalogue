@@ -13,8 +13,9 @@
 
 <header class="adm-top">
   <a class="adm-brand" href="<?= url('admin') ?>">
-    <img class="adm-mark" src="<?= asset('img/favicon.png') ?>" alt="" width="64" height="64">
-    <?= e(setting('site_name', 'Catalogue')) ?> <span>admin</span>
+    <img class="adm-mark" src="<?= asset('img/ds-logo.png') ?>"
+         alt="<?= e(setting('site_name', 'Catalogue')) ?>" width="1100" height="63">
+    <span>admin</span>
   </a>
   <button class="adm-nav-toggle" type="button" aria-expanded="false" aria-controls="adm-side">Menu</button>
   <div class="adm-top-right">
@@ -35,6 +36,8 @@
       <span class="ico" aria-hidden="true">&#9635;</span> Products</a>
     <a href="<?= url('admin/categories') ?>" class="<?= str_starts_with($r, 'admin/categories') ? 'is-current' : '' ?>">
       <span class="ico" aria-hidden="true">&#9636;</span> Categories</a>
+    <a href="<?= url('admin/origins') ?>" class="<?= str_starts_with($r, 'admin/origins') ? 'is-current' : '' ?>">
+      <span class="ico" aria-hidden="true">&#9673;</span> Origins</a>
     <a href="<?= url('admin/settings') ?>" class="<?= $r === 'admin/settings' ? 'is-current' : '' ?>">
       <span class="ico" aria-hidden="true">&#9881;</span> Settings</a>
     <a href="<?= url('admin/password') ?>" class="<?= $r === 'admin/password' ? 'is-current' : '' ?>">

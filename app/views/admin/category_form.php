@@ -62,6 +62,22 @@ $activeOn = isset($_SESSION['old'])
         <p class="hint">Optional. Filtering a parent also shows products in its children.</p>
       </div>
 
+      <div class="field">
+        <label for="spec_template">Standard specification headings</label>
+        <textarea id="spec_template" name="spec_template" rows="7"
+                  placeholder="Pack format&#10;Pack sizes&#10;Minimum order&#10;Shelf life&#10;Storage&#10;Certifications"><?= e($fv('spec_template')) ?></textarea>
+        <p class="hint">
+          One heading per line. When you create a product in this category the
+          specification table starts with these rows, empty and ready to fill in &mdash;
+          so the same headings get used across the whole category instead of being
+          retyped slightly differently each time. Nothing is saved to a product
+          until you type a value, and you can always add, rename or delete rows on
+          the product itself.
+          <br>To put a heading in a section, write it as <code>Group|Heading</code>,
+          e.g. <code>Logistics|Minimum order</code>.
+        </p>
+      </div>
+
       <label class="switch">
         <input type="checkbox" name="is_active" value="1" <?= $activeOn ? 'checked' : '' ?>>
         <span>Show this category on the public site</span>

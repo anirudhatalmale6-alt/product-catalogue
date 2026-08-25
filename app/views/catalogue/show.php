@@ -68,6 +68,11 @@ $showWeightRow = $product['weight_grams'] !== null && !$hasWeightSpec;
     <h1><?= e($product['name']) ?></h1>
 
     <div class="meta-row">
+      <?php if ($product['origin_name']): ?>
+        <span class="meta-item">Origin:
+          <a class="meta-link" href="<?= url('origin/' . $product['origin_slug']) ?>"><?= e($product['origin_name']) ?></a>
+        </span>
+      <?php endif; ?>
       <?php if ($product['brand']): ?><span class="meta-item">Brand: <strong><?= e($product['brand']) ?></strong></span><?php endif; ?>
       <?php if ($product['sku']): ?><span class="meta-item">SKU: <strong><?= e($product['sku']) ?></strong></span><?php endif; ?>
     </div>
@@ -78,7 +83,9 @@ $showWeightRow = $product['weight_grams'] !== null && !$hasWeightSpec;
 
     <div class="buy-box">
       <p class="price price-lg">
-        <?php if ($product['sale_price'] !== null): ?>
+        <?php if (price_on_request($product)): ?>
+          <span class="price-poa"><?= e(price_request_label()) ?></span>
+        <?php elseif ($product['sale_price'] !== null): ?>
           <span class="price-now"><?= money($product['sale_price']) ?></span>
           <span class="price-was"><?= money($product['price']) ?></span>
           <span class="save">Save <?= money((float) $product['price'] - (float) $product['sale_price']) ?></span>
@@ -96,7 +103,9 @@ $showWeightRow = $product['weight_grams'] !== null && !$hasWeightSpec;
       <?php if (setting('contact_email') || setting('contact_phone')): ?>
         <?php // The separator only belongs between two values - with just one
               // of the pair filled in, printing it leaves a dangling dot. ?>
-        <p class="enquire">To order or ask about this item, contact
+        <p class="enquire"><?= price_on_request($product)
+              ? 'For a quote on this item, including volumes and incoterms, contact'
+              : 'To order or ask about this item, contact' ?>
           <?php if (setting('contact_email')): ?><strong><?= e(setting('contact_email')) ?></strong><?php endif; ?>
           <?php if (setting('contact_email') && setting('contact_phone')): ?> &middot; <?php endif; ?>
           <?php if (setting('contact_phone')): ?><strong><?= e(setting('contact_phone')) ?></strong><?php endif; ?>

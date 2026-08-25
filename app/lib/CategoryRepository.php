@@ -35,12 +35,14 @@ class CategoryRepository
     public static function save(?int $id, array $data): int
     {
         $fields = [
-            'parent_id'   => !empty($data['parent_id']) ? (int) $data['parent_id'] : null,
-            'name'        => $data['name'],
-            'slug'        => $data['slug'],
-            'description' => $data['description'] !== '' ? $data['description'] : null,
-            'sort_order'  => (int) ($data['sort_order'] ?? 0),
-            'is_active'   => !empty($data['is_active']) ? 1 : 0,
+            'parent_id'     => !empty($data['parent_id']) ? (int) $data['parent_id'] : null,
+            'name'          => $data['name'],
+            'slug'          => $data['slug'],
+            'description'   => $data['description'] !== '' ? $data['description'] : null,
+            'spec_template' => trim((string) ($data['spec_template'] ?? '')) !== ''
+                                ? trim((string) $data['spec_template']) : null,
+            'sort_order'    => (int) ($data['sort_order'] ?? 0),
+            'is_active'     => !empty($data['is_active']) ? 1 : 0,
         ];
 
         if ($id) {

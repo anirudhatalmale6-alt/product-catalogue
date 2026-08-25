@@ -5,8 +5,10 @@ $labels = [
     'currency_code'   => ['Currency code', 'e.g. CAD, USD, EUR. Printed in the footer.'],
     'currency_symbol' => ['Currency symbol', 'Put in front of every price, e.g. $ or £.'],
     'per_page'        => ['Products per page', 'Between 4 and 60.'],
+    'price_request_label' => ['Label for unpriced items',
+        'What appears where a price would be when a product has none, e.g. "Price on request" or "Contact for a quote".'],
     'contact_email'   => ['Contact email', 'Optional. Shown on product pages so people can enquire.'],
-    'contact_phone'   => ['Contact phone', 'Optional.'],
+    'contact_phone'   => ['Contact phone', 'Optional. Leave blank to keep it off the public site.'],
 ];
 ?>
 

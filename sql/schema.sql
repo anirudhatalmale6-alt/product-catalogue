@@ -12,6 +12,7 @@ DROP TABLE IF EXISTS product_specs;
 DROP TABLE IF EXISTS product_images;
 DROP TABLE IF EXISTS products;
 DROP TABLE IF EXISTS categories;
+DROP TABLE IF EXISTS origins;
 DROP TABLE IF EXISTS admin_users;
 DROP TABLE IF EXISTS login_attempts;
 DROP TABLE IF EXISTS settings;
@@ -21,6 +22,13 @@ SET FOREIGN_KEY_CHECKS = 1;
 -- ---------------------------------------------------------------------------
 -- Categories (product types). Self-referencing so you can nest if you ever
 -- want sub-types; parent_id NULL = top level.
+--
+-- spec_template holds the specification row headings that a product in this
+-- category normally carries, one per line, as "Group|Name" or just "Name".
+-- The product form offers them as blank rows so the same headings get used
+-- across the whole category instead of being retyped slightly differently
+-- every time. It is only ever a suggestion - nothing is written to a product
+-- until you type a value.
 -- ---------------------------------------------------------------------------
 CREATE TABLE categories (
     id            INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -28,6 +36,7 @@ CREATE TABLE categories (
     name          VARCHAR(120)  NOT NULL,
     slug          VARCHAR(140)  NOT NULL,
     description   TEXT          NULL,
+    spec_template TEXT          NULL,
     image_path    VARCHAR(255)  NULL,
     sort_order    INT           NOT NULL DEFAULT 0,
     is_active     TINYINT(1)    NOT NULL DEFAULT 1,
@@ -42,22 +51,47 @@ CREATE TABLE categories (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ---------------------------------------------------------------------------
+-- Origins. Country of origin cuts across every product type - a buyer wants
+-- "Thai frozen items", not a separate Thailand category duplicated under each
+-- type - so it is its own dimension rather than a second category tree.
+-- Deleting an origin leaves its products in place with no origin set.
+-- ---------------------------------------------------------------------------
+CREATE TABLE origins (
+    id         INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    name       VARCHAR(120) NOT NULL,
+    slug       VARCHAR(140) NOT NULL,
+    code       VARCHAR(8)   NULL,          -- ISO-3166 alpha-2, for flags/exports
+    sort_order INT          NOT NULL DEFAULT 0,
+    is_active  TINYINT(1)   NOT NULL DEFAULT 1,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_origins_slug (slug),
+    KEY idx_origins_active_sort (is_active, sort_order)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------------
 -- Products
 -- stock_status is the human-facing availability shown on the front-end.
 -- stock_qty is optional bookkeeping; leave NULL if you do not track counts.
+--
+-- price is NULLABLE on purpose. For export sourcing a figure usually depends
+-- on volume and incoterm, so an item with no price is not an incomplete
+-- record - it is a "price on request" line. The listing renders it that way
+-- and the price filter skips those rows rather than treating them as zero.
 -- ---------------------------------------------------------------------------
 CREATE TABLE products (
     id                INT UNSIGNED   NOT NULL AUTO_INCREMENT,
     category_id       INT UNSIGNED   NULL,
+    origin_id         INT UNSIGNED   NULL,
     sku               VARCHAR(64)    NULL,
     name              VARCHAR(200)   NOT NULL,
     slug              VARCHAR(220)   NOT NULL,
     short_description VARCHAR(300)   NULL,
     description       TEXT           NULL,
-    price             DECIMAL(12,2)  NOT NULL DEFAULT 0.00,
+    price             DECIMAL(12,2)  NULL DEFAULT NULL,
     sale_price        DECIMAL(12,2)  NULL,
-    stock_status      ENUM('in_stock','low_stock','out_of_stock','preorder','discontinued')
-                                     NOT NULL DEFAULT 'in_stock',
+    stock_status      ENUM('in_stock','low_stock','out_of_stock','preorder',
+                           'made_to_order','discontinued')
+                                     NOT NULL DEFAULT 'made_to_order',
     stock_qty         INT            NULL,
     brand             VARCHAR(120)   NULL,
     weight_grams      INT UNSIGNED   NULL,
@@ -70,13 +104,16 @@ CREATE TABLE products (
     UNIQUE KEY uq_products_slug (slug),
     UNIQUE KEY uq_products_sku (sku),
     KEY idx_products_category (category_id),
+    KEY idx_products_origin (origin_id),
     KEY idx_products_active (is_active),
     KEY idx_products_status (stock_status),
     KEY idx_products_price (price),
     KEY idx_products_name (name),
     KEY idx_products_brand (brand),
     CONSTRAINT fk_products_category FOREIGN KEY (category_id)
-        REFERENCES categories (id) ON DELETE SET NULL
+        REFERENCES categories (id) ON DELETE SET NULL,
+    CONSTRAINT fk_products_origin FOREIGN KEY (origin_id)
+        REFERENCES origins (id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ---------------------------------------------------------------------------
@@ -157,10 +194,19 @@ CREATE TABLE settings (
 -- Every one of these is editable from Admin -> Settings; nothing here is
 -- hard-coded anywhere else in the application.
 INSERT INTO settings (setting_key, setting_value) VALUES
-    ('site_name',       'MIKN Consulting'),
+    ('site_name',       'Disruptive Sourcing'),
     ('site_tagline',    'Product catalogue'),
     ('currency_code',   'CAD'),
     ('currency_symbol', '$'),
-    ('per_page',        '12'),
+    ('per_page',        '24'),
+    ('price_request_label', 'Price on request'),
     ('contact_email',   ''),
     ('contact_phone',   '+1 (236) 516-8502');
+
+-- ---------------------------------------------------------------------------
+-- No origins, categories or products are seeded here. This file is structure
+-- and site settings only; the catalogue itself lives in sql/catalogue_data.sql
+-- and is imported second. Seeding origins in both files meant the second
+-- import hit a duplicate primary key, aborted, and left an empty catalogue
+-- behind - so they are defined in exactly one place.
+-- ---------------------------------------------------------------------------

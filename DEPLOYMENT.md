@@ -22,9 +22,18 @@ real names are usually prefixed with your account name.
 
 cPanel → **phpMyAdmin** → select your database → **Import** tab.
 
-1. Import `sql/schema.sql`.
-2. Import `sql/sample_data.sql` if you want the demo products to look at.
-   Skip it if you are going straight to your own data.
+1. Import `sql/schema.sql` — tables and site settings.
+2. Import `sql/catalogue_data.sql` — the origins, the eight categories and the
+   full product list.
+
+Import them in that order. The second file expects the tables from the first.
+Skip the second only if you want to start from an empty catalogue and type
+everything in yourself.
+
+Both together should give you 8 categories, 5 origins, 197 products and 213
+image rows. If the second import reports an error part-way through, empty the
+database and start again rather than importing it twice — a half-finished
+import leaves gaps that are hard to spot later.
 
 ### 3. Upload the files
 

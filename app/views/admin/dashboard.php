@@ -29,6 +29,18 @@
     <span class="stat-label">Out of stock</span>
     <span class="stat-note"><?= $stats['low'] ?> more running low</span>
   </a>
+  <?php // Links out to the public listing, which is the one place that can
+        // actually list the products with no origin against their categories. ?>
+  <a class="stat" href="<?= url('catalogue', ['origin' => 'none']) ?>" target="_blank" rel="noopener">
+    <span class="stat-num"><?= $stats['no_origin'] ?></span>
+    <span class="stat-label">No origin set</span>
+    <span class="stat-note">Live products missing a country</span>
+  </a>
+  <div class="stat">
+    <span class="stat-num"><?= $stats['no_price'] ?></span>
+    <span class="stat-label">Quoted on request</span>
+    <span class="stat-note">Live products with no price</span>
+  </div>
 </div>
 
 <div class="adm-cols">
@@ -50,7 +62,7 @@
               <?php if (!$p['is_active']): ?><span class="tag tag-muted">Hidden</span><?php endif; ?>
             </td>
             <td class="muted"><?= e($p['category_name'] ?? '&mdash;') ?></td>
-            <td><?= money($p['price']) ?></td>
+            <td class="mono"><?= $p['price'] === null ? '<span class="muted">On request</span>' : money($p['price']) ?></td>
             <td><span class="tag tag-<?= stock_class($p['stock_status']) ?>"><?= e(stock_label($p['stock_status'])) ?></span></td>
             <td class="right"><a class="btn btn-sm" href="<?= url('product/' . $p['slug']) ?>" target="_blank" rel="noopener">View</a></td>
           </tr>
@@ -79,6 +91,7 @@
     <ul class="simple-list">
       <li><a href="<?= url('admin/products/new') ?>">Add a product</a></li>
       <li><a href="<?= url('admin/categories/new') ?>">Add a category</a></li>
+      <li><a href="<?= url('admin/origins') ?>">Manage origins</a></li>
       <li><a href="<?= url('admin/settings') ?>">Change site name or currency</a></li>
     </ul>
   </section>

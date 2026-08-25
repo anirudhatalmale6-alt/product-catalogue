@@ -112,16 +112,17 @@ if (isset($_SESSION['old']['spec_name']) && is_array($_SESSION['old']['spec_name
         </div>
         <div class="panel-body">
           <p class="hint">
-            Free-form name/value pairs, so you can record anything: dimensions, voltage,
-            material, certification. The optional group heading lets you split long lists
-            into sections on the product page.
+            Free-form name/value pairs, so you can record anything: pack sizes, shelf life,
+            minimum order, certifications, HS codes. Pick a category and the standard
+            headings for it appear here, ready to fill in. The optional group heading
+            splits long lists into sections on the product page.
           </p>
           <div class="spec-rows" id="spec-rows">
             <?php foreach ($specRows as $s): ?>
               <div class="spec-row">
                 <input type="text" name="spec_group[]"  placeholder="Group (optional)" value="<?= e($s['spec_group'] ?? '') ?>" maxlength="80">
-                <input type="text" name="spec_name[]"   placeholder="Name, e.g. Voltage"  value="<?= e($s['spec_name'] ?? '') ?>" maxlength="120">
-                <input type="text" name="spec_value[]"  placeholder="Value, e.g. 230 V"   value="<?= e($s['spec_value'] ?? '') ?>" maxlength="400">
+                <input type="text" name="spec_name[]"   placeholder="Name, e.g. Shelf life" value="<?= e($s['spec_name'] ?? '') ?>" maxlength="120">
+                <input type="text" name="spec_value[]"  placeholder="Value, e.g. 18 months" value="<?= e($s['spec_value'] ?? '') ?>" maxlength="400">
                 <button type="button" class="btn btn-sm btn-danger remove-spec" aria-label="Remove row">&times;</button>
               </div>
             <?php endforeach; ?>
@@ -129,13 +130,21 @@ if (isset($_SESSION['old']['spec_name']) && is_array($_SESSION['old']['spec_name
           <template id="spec-template">
             <div class="spec-row">
               <input type="text" name="spec_group[]"  placeholder="Group (optional)" maxlength="80">
-              <input type="text" name="spec_name[]"   placeholder="Name, e.g. Voltage"  maxlength="120">
-              <input type="text" name="spec_value[]"  placeholder="Value, e.g. 230 V"   maxlength="400">
+              <input type="text" name="spec_name[]"   placeholder="Name, e.g. Shelf life" maxlength="120">
+              <input type="text" name="spec_value[]"  placeholder="Value, e.g. 18 months" maxlength="400">
               <button type="button" class="btn btn-sm btn-danger remove-spec" aria-label="Remove row">&times;</button>
             </div>
           </template>
+          <?php // Per-category heading lists, read by admin.js when the category
+                // changes. Only offered while the spec table is still empty, so
+                // choosing a category never disturbs rows already filled in. ?>
+          <script type="application/json" id="spec-templates"><?=
+            json_encode(array_column($categories, 'spec_template', 'id'),
+                        JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT)
+          ?></script>
           <?php if (!$specRows): ?>
-            <p class="panel-empty" id="spec-empty">No specifications yet &mdash; use &ldquo;Add row&rdquo;.</p>
+            <p class="panel-empty" id="spec-empty">No specifications yet &mdash; use &ldquo;Add row&rdquo;,
+              or pick a category and the standard headings for it appear here.</p>
           <?php endif; ?>
         </div>
       </section>
@@ -199,11 +208,36 @@ if (isset($_SESSION['old']['spec_name']) && is_array($_SESSION['old']['spec_name
       </section>
 
       <section class="panel">
+        <div class="panel-head"><h2>Origin</h2></div>
+        <div class="panel-body">
+          <div class="field <?= isset($errors['origin_id']) ? 'has-error' : '' ?>">
+            <label for="origin_id" class="sr-only">Origin</label>
+            <select id="origin_id" name="origin_id">
+              <option value="">— Not specified —</option>
+              <?php foreach ($origins as $o): ?>
+                <option value="<?= (int) $o['id'] ?>" <?= (string) $fv('origin_id') === (string) $o['id'] ? 'selected' : '' ?>>
+                  <?= e($o['name']) ?>
+                </option>
+              <?php endforeach; ?>
+            </select>
+            <?php if (isset($errors['origin_id'])): ?><p class="err"><?= e($errors['origin_id']) ?></p><?php endif; ?>
+            <p class="hint">Country of origin. Buyers can filter the whole catalogue by it.
+               <a href="<?= url('admin/origins/new') ?>" target="_blank">Add one &nearr;</a></p>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
         <div class="panel-head"><h2>Price</h2></div>
         <div class="panel-body">
           <div class="field <?= isset($errors['price']) ? 'has-error' : '' ?>">
-            <label for="price">Regular price (<?= e(setting('currency_code', '')) ?>) <span class="req">*</span></label>
-            <input id="price" name="price" type="number" min="0" step="0.01" required value="<?= e((string) $fv('price', '0.00')) ?>">
+            <label for="price">Regular price (<?= e(setting('currency_code', '')) ?>)</label>
+            <?php // No `required` and no 0.00 default: blank is a real answer here
+                  // and pre-filling a zero would publish the item as free. ?>
+            <input id="price" name="price" type="number" min="0" step="0.01"
+                   value="<?= e((string) $fv('price', '')) ?>" placeholder="Leave blank">
+            <p class="hint">Leave blank and the item shows
+               &ldquo;<?= e(price_request_label()) ?>&rdquo; instead of a figure.</p>
             <?php if (isset($errors['price'])): ?><p class="err"><?= e($errors['price']) ?></p><?php endif; ?>
           </div>
           <div class="field <?= isset($errors['sale_price']) ? 'has-error' : '' ?>">
@@ -221,8 +255,8 @@ if (isset($_SESSION['old']['spec_name']) && is_array($_SESSION['old']['spec_name
           <div class="field <?= isset($errors['stock_status']) ? 'has-error' : '' ?>">
             <label for="stock_status">Status</label>
             <select id="stock_status" name="stock_status">
-              <?php foreach (['in_stock','low_stock','out_of_stock','preorder','discontinued'] as $st): ?>
-                <option value="<?= $st ?>" <?= (string) $fv('stock_status', 'in_stock') === $st ? 'selected' : '' ?>>
+              <?php foreach (stock_statuses() as $st): ?>
+                <option value="<?= $st ?>" <?= (string) $fv('stock_status', 'made_to_order') === $st ? 'selected' : '' ?>>
                   <?= e(stock_label($st)) ?>
                 </option>
               <?php endforeach; ?>

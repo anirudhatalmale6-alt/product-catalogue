@@ -111,27 +111,53 @@ function money($amount): string
     return $symbol . number_format((float) $amount, 2);
 }
 
+/**
+ * True when a product carries no price at all.
+ *
+ * A missing price is a deliberate state, not a gap: on an export catalogue the
+ * figure depends on volume and incoterm. Note the check is against NULL rather
+ * than falsiness, so a genuine 0.00 still prints as a price.
+ */
+function price_on_request(array $product): bool
+{
+    return $product['price'] === null && $product['sale_price'] === null;
+}
+
+/** The label shown in place of a figure. Editable under Settings. */
+function price_request_label(): string
+{
+    return setting('price_request_label', 'Price on request');
+}
+
 /** Human labels + CSS modifier for the stock_status enum. */
 function stock_label(string $status): string
 {
     return [
-        'in_stock'     => 'In stock',
-        'low_stock'    => 'Low stock',
-        'out_of_stock' => 'Out of stock',
-        'preorder'     => 'Pre-order',
-        'discontinued' => 'Discontinued',
+        'in_stock'      => 'In stock',
+        'low_stock'     => 'Low stock',
+        'out_of_stock'  => 'Out of stock',
+        'preorder'      => 'Pre-order',
+        'made_to_order' => 'Available to order',
+        'discontinued'  => 'Discontinued',
     ][$status] ?? $status;
 }
 
 function stock_class(string $status): string
 {
     return [
-        'in_stock'     => 'ok',
-        'low_stock'    => 'warn',
-        'out_of_stock' => 'bad',
-        'preorder'     => 'info',
-        'discontinued' => 'muted',
+        'in_stock'      => 'ok',
+        'low_stock'     => 'warn',
+        'out_of_stock'  => 'bad',
+        'preorder'      => 'info',
+        'made_to_order' => 'info',
+        'discontinued'  => 'muted',
     ][$status] ?? 'muted';
+}
+
+/** Every value the stock_status enum accepts, in display order. */
+function stock_statuses(): array
+{
+    return ['in_stock', 'low_stock', 'made_to_order', 'preorder', 'out_of_stock', 'discontinued'];
 }
 
 /** URL-safe slug. Falls back to a random string for non-latin names. */

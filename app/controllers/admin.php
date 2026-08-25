@@ -49,6 +49,15 @@ function admin_dispatch(array $s): void
             admin_category_list();
             return;
 
+        case 'origins':
+            $sub = $s[1] ?? '';
+            if ($sub === 'new')    { admin_origin_form(null); return; }
+            if ($sub === 'edit')   { admin_origin_form((int) ($s[2] ?? 0)); return; }
+            if ($sub === 'save')   { admin_origin_save(); return; }
+            if ($sub === 'delete') { admin_origin_delete(); return; }
+            admin_origin_list();
+            return;
+
         case 'settings':
             admin_settings();
             return;
@@ -105,6 +114,11 @@ function admin_dashboard(): void
         'no_image'   => (int) Database::scalar(
             'SELECT COUNT(*) FROM products p
               WHERE NOT EXISTS (SELECT 1 FROM product_images i WHERE i.product_id = p.id)'),
+        // Two "still to fill in" counts, so an import that is only part-done
+        // is visible on the dashboard instead of having to be gone looking for.
+        'no_origin'  => OriginRepository::unsetCount(),
+        'no_price'   => (int) Database::scalar(
+            'SELECT COUNT(*) FROM products WHERE is_active = 1 AND price IS NULL'),
     ];
 
     view('admin/dashboard', [
@@ -166,6 +180,7 @@ function admin_product_form(?int $id): void
         'images'     => $images,
         'specs'      => $specs,
         'categories' => CategoryRepository::all(),
+        'origins'    => OriginRepository::options(),
     ], 'admin/layout');
 }
 
@@ -177,11 +192,12 @@ function admin_product_validate(array $in, ?int $id): array
         'name'              => trim((string) ($in['name'] ?? '')),
         'sku'               => trim((string) ($in['sku'] ?? '')),
         'category_id'       => (string) ($in['category_id'] ?? ''),
+        'origin_id'         => (string) ($in['origin_id'] ?? ''),
         'short_description' => trim((string) ($in['short_description'] ?? '')),
         'description'       => trim((string) ($in['description'] ?? '')),
         'price'             => trim((string) ($in['price'] ?? '')),
         'sale_price'        => trim((string) ($in['sale_price'] ?? '')),
-        'stock_status'      => (string) ($in['stock_status'] ?? 'in_stock'),
+        'stock_status'      => (string) ($in['stock_status'] ?? 'made_to_order'),
         'stock_qty'         => trim((string) ($in['stock_qty'] ?? '')),
         'brand'             => trim((string) ($in['brand'] ?? '')),
         'weight_grams'      => trim((string) ($in['weight_grams'] ?? '')),
@@ -196,12 +212,18 @@ function admin_product_validate(array $in, ?int $id): array
         $errors['name'] = 'Name is too long (200 characters max).';
     }
 
-    if ($data['price'] === '' || !is_numeric($data['price']) || (float) $data['price'] < 0) {
-        $errors['price'] = 'Enter a price of 0 or more.';
+    // An empty price is valid - it means "on request". Only a filled-in one
+    // has to be a sensible number.
+    if ($data['price'] !== '' && (!is_numeric($data['price']) || (float) $data['price'] < 0)) {
+        $errors['price'] = 'Enter a price of 0 or more, or leave it blank to quote on request.';
     }
     if ($data['sale_price'] !== '') {
         if (!is_numeric($data['sale_price']) || (float) $data['sale_price'] < 0) {
             $errors['sale_price'] = 'Sale price must be a number.';
+        } elseif ($data['price'] === '') {
+            // Otherwise the product page has a sale price struck through
+            // against nothing, and the card shows a discount off no figure.
+            $errors['sale_price'] = 'A sale price needs a regular price to be reduced from.';
         } elseif (is_numeric($data['price']) && (float) $data['sale_price'] >= (float) $data['price']) {
             $errors['sale_price'] = 'Sale price should be lower than the regular price.';
         }
@@ -212,12 +234,14 @@ function admin_product_validate(array $in, ?int $id): array
     if ($data['weight_grams'] !== '' && !ctype_digit($data['weight_grams'])) {
         $errors['weight_grams'] = 'Weight must be a whole number of grams.';
     }
-    if (!in_array($data['stock_status'],
-        ['in_stock', 'low_stock', 'out_of_stock', 'preorder', 'discontinued'], true)) {
+    if (!in_array($data['stock_status'], stock_statuses(), true)) {
         $errors['stock_status'] = 'Pick a valid availability.';
     }
     if ($data['category_id'] !== '' && !CategoryRepository::find((int) $data['category_id'])) {
         $errors['category_id'] = 'That category no longer exists.';
+    }
+    if ($data['origin_id'] !== '' && !OriginRepository::find((int) $data['origin_id'])) {
+        $errors['origin_id'] = 'That origin no longer exists.';
     }
     if ($data['sku'] !== '') {
         $clash = Database::one('SELECT id FROM products WHERE sku = ? AND id <> ? LIMIT 1',
@@ -426,11 +450,12 @@ function admin_category_save(): void
 
     $id = !empty($_POST['id']) ? (int) $_POST['id'] : null;
     $data = [
-        'name'        => trim((string) ($_POST['name'] ?? '')),
-        'description' => trim((string) ($_POST['description'] ?? '')),
-        'parent_id'   => $_POST['parent_id'] ?? '',
-        'sort_order'  => (int) ($_POST['sort_order'] ?? 0),
-        'is_active'   => !empty($_POST['is_active']),
+        'name'          => trim((string) ($_POST['name'] ?? '')),
+        'description'   => trim((string) ($_POST['description'] ?? '')),
+        'spec_template' => trim((string) ($_POST['spec_template'] ?? '')),
+        'parent_id'     => $_POST['parent_id'] ?? '',
+        'sort_order'    => (int) ($_POST['sort_order'] ?? 0),
+        'is_active'     => !empty($_POST['is_active']),
     ];
 
     $errors = [];
@@ -475,13 +500,99 @@ function admin_category_delete(): void
 }
 
 // ---------------------------------------------------------------------------
+// Origins
+// ---------------------------------------------------------------------------
+
+function admin_origin_list(): void
+{
+    view('admin/origins_list', [
+        'title'       => 'Origins',
+        'origins'     => OriginRepository::all(),
+        'unsetCount'  => OriginRepository::unsetCount(),
+    ], 'admin/layout');
+}
+
+function admin_origin_form(?int $id): void
+{
+    $origin = null;
+    if ($id) {
+        $origin = OriginRepository::find($id);
+        if (!$origin) {
+            not_found('Origin not found.');
+        }
+    }
+    view('admin/origin_form', [
+        'title'  => $origin ? 'Edit origin' : 'New origin',
+        'origin' => $origin,
+    ], 'admin/layout');
+}
+
+function admin_origin_save(): void
+{
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        redirect('admin/origins');
+    }
+    csrf_check();
+
+    $id = !empty($_POST['id']) ? (int) $_POST['id'] : null;
+    $data = [
+        'name'       => trim((string) ($_POST['name'] ?? '')),
+        'code'       => trim((string) ($_POST['code'] ?? '')),
+        'sort_order' => (int) ($_POST['sort_order'] ?? 0),
+        'is_active'  => !empty($_POST['is_active']),
+    ];
+
+    $errors = [];
+    if ($data['name'] === '') {
+        $errors['name'] = 'An origin name is required.';
+    } elseif (mb_strlen($data['name']) > 120) {
+        $errors['name'] = 'Name is too long (120 characters max).';
+    }
+    if ($data['code'] !== '' && !preg_match('/^[A-Za-z]{2,8}$/', $data['code'])) {
+        $errors['code'] = 'Use letters only, e.g. CA for Canada. Leave blank if unsure.';
+    }
+
+    if ($errors) {
+        set_old($_POST);
+        $_SESSION['errors'] = $errors;
+        flash('error', 'Please fix the highlighted fields.');
+        redirect($id ? "admin/origins/edit/{$id}" : 'admin/origins/new');
+    }
+
+    $slugInput = trim((string) ($_POST['slug'] ?? ''));
+    $data['slug'] = unique_slug('origins',
+        slugify($slugInput !== '' ? $slugInput : $data['name']), $id);
+
+    OriginRepository::save($id, $data);
+    clear_old();
+    unset($_SESSION['errors']);
+    flash('success', 'Origin saved.');
+    redirect('admin/origins');
+}
+
+function admin_origin_delete(): void
+{
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        redirect('admin/origins');
+    }
+    csrf_check();
+    $id = (int) ($_POST['id'] ?? 0);
+    $origin = OriginRepository::find($id);
+    if ($origin) {
+        OriginRepository::delete($id);
+        flash('success', 'Deleted "' . $origin['name'] . '". Its products now have no origin set.');
+    }
+    redirect('admin/origins');
+}
+
+// ---------------------------------------------------------------------------
 // Settings and password
 // ---------------------------------------------------------------------------
 
 function admin_settings(): void
 {
     $keys = ['site_name', 'site_tagline', 'currency_code', 'currency_symbol',
-             'per_page', 'contact_email', 'contact_phone'];
+             'per_page', 'price_request_label', 'contact_email', 'contact_phone'];
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         csrf_check();
@@ -489,6 +600,11 @@ function admin_settings(): void
             $val = trim((string) ($_POST[$k] ?? ''));
             if ($k === 'per_page') {
                 $val = (string) max(4, min(60, (int) $val ?: 12));
+            }
+            // Blanking this would leave unpriced products showing nothing
+            // at all where a price belongs.
+            if ($k === 'price_request_label' && $val === '') {
+                $val = 'Price on request';
             }
             Database::run(
                 'INSERT INTO settings (setting_key, setting_value) VALUES (?, ?)

@@ -50,6 +50,7 @@ require APP_DIR . '/lib/Auth.php';
 require APP_DIR . '/lib/ImageUploader.php';
 require APP_DIR . '/lib/ProductRepository.php';
 require APP_DIR . '/lib/CategoryRepository.php';
+require APP_DIR . '/lib/OriginRepository.php';
 
 Database::configure($config['db']);
 

@@ -55,6 +55,56 @@
     });
   }
 
+  // --- Standard headings for the chosen category ---------------------------
+  // Fills the spec table with the category's usual row headings, values left
+  // blank. It only ever runs while the table is empty, so it cannot overwrite
+  // anything already typed, and the rows are ignored on save until a value is
+  // entered - picking a category by mistake costs nothing.
+  var specTemplates = document.getElementById('spec-templates');
+  var categorySelect = document.getElementById('category_id');
+
+  if (rows && tpl && specTemplates && categorySelect) {
+    var templates = {};
+    try {
+      templates = JSON.parse(specTemplates.textContent) || {};
+    } catch (err) {
+      templates = {};
+    }
+
+    var tableIsEmpty = function () {
+      var inputs = rows.querySelectorAll('input[name="spec_name[]"], input[name="spec_value[]"]');
+      for (var i = 0; i < inputs.length; i++) {
+        if (inputs[i].value.trim() !== '') { return false; }
+      }
+      return true;
+    };
+
+    categorySelect.addEventListener('change', function () {
+      var raw = templates[categorySelect.value];
+      if (!raw || !tableIsEmpty()) { return; }
+
+      rows.innerHTML = '';
+      raw.split('\n').forEach(function (line) {
+        line = line.trim();
+        if (!line) { return; }
+        // "Group|Heading", or just "Heading".
+        var bar = line.indexOf('|');
+        var group = bar === -1 ? '' : line.slice(0, bar).trim();
+        var name = bar === -1 ? line : line.slice(bar + 1).trim();
+        if (!name) { return; }
+
+        rows.appendChild(tpl.content.cloneNode(true));
+        var added = rows.lastElementChild;
+        added.querySelector('input[name="spec_group[]"]').value = group;
+        added.querySelector('input[name="spec_name[]"]').value = name;
+      });
+      if (rows.children.length) {
+        hideEmptyNote();
+        rows.querySelector('input[name="spec_value[]"]').focus();
+      }
+    });
+  }
+
   // --- Slug preview --------------------------------------------------------
   var nameInput = document.getElementById('name');
   var slugInput = document.getElementById('slug');

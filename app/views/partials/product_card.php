@@ -3,10 +3,13 @@
   <a class="card-media" href="<?= url('product/' . $p['slug']) ?>">
     <img src="<?= e(upload_url($p['primary_image'] ?? null)) ?>"
          alt="<?= e($p['name']) ?>" loading="lazy" width="500" height="500">
-    <?php if (!empty($p['sale_price'])): ?>
+    <?php if ($p['sale_price'] !== null): ?>
       <span class="badge badge-sale">Sale</span>
     <?php elseif (!empty($p['is_featured'])): ?>
       <span class="badge badge-featured">Featured</span>
+    <?php endif; ?>
+    <?php if (!empty($p['origin_name'])): ?>
+      <span class="badge badge-origin"><?= e($p['origin_name']) ?></span>
     <?php endif; ?>
   </a>
   <div class="card-body">
@@ -24,7 +27,9 @@
     </div>
     <div class="card-foot">
       <p class="price">
-        <?php if (!empty($p['sale_price'])): ?>
+        <?php if (price_on_request($p)): ?>
+          <span class="price-poa"><?= e(price_request_label()) ?></span>
+        <?php elseif ($p['sale_price'] !== null): ?>
           <span class="price-now"><?= money($p['sale_price']) ?></span>
           <span class="price-was"><?= money($p['price']) ?></span>
         <?php else: ?>
