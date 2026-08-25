@@ -230,22 +230,20 @@ if (isset($_SESSION['old']['spec_name']) && is_array($_SESSION['old']['spec_name
       <section class="panel">
         <div class="panel-head"><h2>Price</h2></div>
         <div class="panel-body">
-          <div class="field <?= isset($errors['price']) ? 'has-error' : '' ?>">
-            <label for="price">Regular price (<?= e(setting('currency_code', '')) ?>)</label>
-            <?php // No `required` and no 0.00 default: blank is a real answer here
-                  // and pre-filling a zero would publish the item as free. ?>
-            <input id="price" name="price" type="number" min="0" step="0.01"
-                   value="<?= e((string) $fv('price', '')) ?>" placeholder="Leave blank">
-            <p class="hint">Leave blank and the item shows
-               &ldquo;<?= e(price_request_label()) ?>&rdquo; instead of a figure.</p>
-            <?php if (isset($errors['price'])): ?><p class="err"><?= e($errors['price']) ?></p><?php endif; ?>
-          </div>
-          <div class="field <?= isset($errors['sale_price']) ? 'has-error' : '' ?>">
-            <label for="sale_price">Sale price</label>
-            <input id="sale_price" name="sale_price" type="number" min="0" step="0.01" value="<?= e((string) $fv('sale_price', '')) ?>">
-            <p class="hint">Leave blank if the item is not on sale.</p>
-            <?php if (isset($errors['sale_price'])): ?><p class="err"><?= e($errors['sale_price']) ?></p><?php endif; ?>
-          </div>
+          <?php // Deliberately not editable here. Pricing is internal and lives
+                // in its own table; putting the field on this form is what would
+                // eventually put a figure on a buyer-facing page by accident. ?>
+          <p>The catalogue shows no prices. Every product displays
+             &ldquo;<?= e(price_request_label()) ?>&rdquo; and buyers ask for a
+             quote through their shortlist.</p>
+          <p class="hint">Your own cost and sell figures go on the
+             <a href="<?= url('admin/pricing') ?>">internal price sheet</a>,
+             which is admin-only and never read by the public pages.</p>
+          <?php if ($product): ?>
+            <p><a class="btn btn-ghost btn-sm"
+                  href="<?= url('admin/pricing', ['q' => $product['name']]) ?>">
+              Price this item</a></p>
+          <?php endif; ?>
         </div>
       </section>
 

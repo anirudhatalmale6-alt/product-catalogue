@@ -112,18 +112,14 @@ function money($amount): string
 }
 
 /**
- * True when a product carries no price at all.
+ * The label the buyer-facing pages show where a price would otherwise sit.
+ * Editable under Settings.
  *
- * A missing price is a deliberate state, not a gap: on an export catalogue the
- * figure depends on volume and incoterm. Note the check is against NULL rather
- * than falsiness, so a genuine 0.00 still prints as a price.
+ * There is no price_on_request() test any more because there is nothing to
+ * test: the public catalogue carries no pricing at all, so every product shows
+ * this label. Internal figures live in product_pricing and are only ever read
+ * by the admin panel through PricingRepository.
  */
-function price_on_request(array $product): bool
-{
-    return $product['price'] === null && $product['sale_price'] === null;
-}
-
-/** The label shown in place of a figure. Editable under Settings. */
 function price_request_label(): string
 {
     return setting('price_request_label', 'Price on request');
@@ -212,11 +208,21 @@ function csrf_field(): string
     return '<input type="hidden" name="_token" value="' . e(csrf_token()) . '">';
 }
 
-/** Called at the top of every POST handler. Dies on mismatch. */
-function csrf_check(): void
+/**
+ * True when the posted token matches. Use this where the page can recover -
+ * a public form whose contents are worth handing back rather than throwing
+ * away behind an error page.
+ */
+function csrf_valid(): bool
 {
     $sent = $_POST['_token'] ?? '';
-    if (!is_string($sent) || !hash_equals(csrf_token(), $sent)) {
+    return is_string($sent) && hash_equals(csrf_token(), $sent);
+}
+
+/** Called at the top of every admin POST handler. Dies on mismatch. */
+function csrf_check(): void
+{
+    if (!csrf_valid()) {
         http_response_code(419);
         exit('<h1>Session expired</h1><p>Please go back, reload the page and try again.</p>');
     }

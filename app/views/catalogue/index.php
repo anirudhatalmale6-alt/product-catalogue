@@ -3,7 +3,7 @@
 $items       = $result['items'];
 $origin      = $origin ?? null;
 $activeCount = 0;
-foreach (['q', 'brand', 'min_price', 'max_price'] as $k) {
+foreach (['q', 'brand'] as $k) {
     if (($filters[$k] ?? '') !== '') { $activeCount++; }
 }
 $activeCount += count($filters['availability']);
@@ -152,23 +152,8 @@ if ($origin) {
       </div>
       <?php endif; ?>
 
-      <?php // No price box at all while nothing carries a price - an empty
-            // "0 - 0" range invites a search that can only return nothing. ?>
-      <?php if ($priceRange !== null): ?>
-      <div class="filter-block">
-        <span class="filter-title">Price (<?= e(setting('currency_code', '')) ?>)</span>
-        <div class="price-row">
-          <label class="sr-only" for="f-min">Minimum price</label>
-          <input id="f-min" type="number" name="min_price" min="0" step="0.01"
-                 placeholder="<?= (int) floor($priceRange[0]) ?>" value="<?= e((string) $filters['min_price']) ?>">
-          <span aria-hidden="true">&ndash;</span>
-          <label class="sr-only" for="f-max">Maximum price</label>
-          <input id="f-max" type="number" name="max_price" min="0" step="0.01"
-                 placeholder="<?= (int) ceil($priceRange[1]) ?>" value="<?= e((string) $filters['max_price']) ?>">
-        </div>
-        <p class="filter-note">Items quoted on request are not included in a price range.</p>
-      </div>
-      <?php endif; ?>
+      <?php // There is no price filter. The catalogue carries no pricing at
+            // all - see product_pricing in the schema. ?>
 
       <?php if ($filters['sort'] !== ''): ?>
         <input type="hidden" name="sort" value="<?= e($filters['sort']) ?>">
@@ -209,8 +194,7 @@ if ($origin) {
               'newest'     => 'Newest',
               'name_asc'   => 'Name A&ndash;Z',
               'name_desc'  => 'Name Z&ndash;A',
-              'price_asc'  => 'Price low to high',
-              'price_desc' => 'Price high to low',
+              'origin'     => 'Origin',
           ] as $val => $label): ?>
             <option value="<?= with_query(['sort' => $val]) ?>" <?= $filters['sort'] === $val ? 'selected' : '' ?>>
               <?= $label ?>
@@ -234,14 +218,6 @@ if ($origin) {
         <?php endif; ?>
         <?php if ($filters['brand'] !== ''): ?>
           <a class="chip" href="<?= with_query(['brand' => null]) ?>"><?= e($filters['brand']) ?> <span aria-hidden="true">&times;</span></a>
-        <?php endif; ?>
-        <?php if ($filters['min_price'] !== '' || $filters['max_price'] !== ''): ?>
-          <a class="chip" href="<?= with_query(['min_price' => null, 'max_price' => null]) ?>">
-            <?= $filters['min_price'] !== '' ? money($filters['min_price']) : 'Any' ?>
-            &ndash;
-            <?= $filters['max_price'] !== '' ? money($filters['max_price']) : 'Any' ?>
-            <span aria-hidden="true">&times;</span>
-          </a>
         <?php endif; ?>
       </div>
     <?php endif; ?>

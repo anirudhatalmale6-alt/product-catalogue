@@ -37,7 +37,29 @@ function admin_dispatch(array $s): void
             if ($sub === 'save')   { admin_product_save(); return; }
             if ($sub === 'delete') { admin_product_delete(); return; }
             if ($sub === 'image')  { admin_product_image($s[2] ?? ''); return; }
+            if ($sub === 'bulk-images') { admin_bulk_images(); return; }
             admin_product_list();
+            return;
+
+        // Internal pricing. Nothing under here is reachable without a session -
+        // Auth::requireLogin() has already run above.
+        case 'pricing':
+            $sub = $s[1] ?? '';
+            if ($sub === 'save')   { admin_pricing_save(); return; }
+            if ($sub === 'export') { admin_pricing_export(); return; }
+            admin_pricing_sheet();
+            return;
+
+        case 'enquiries':
+            $sub = $s[1] ?? '';
+            if ($sub === 'update') { admin_enquiry_update(); return; }
+            if ($sub === 'delete') { admin_enquiry_delete(); return; }
+            if ($sub === 'export') { admin_enquiry_export((int) ($s[2] ?? 0)); return; }
+            if ($sub !== '' && ctype_digit((string) $sub)) {
+                admin_enquiry_show((int) $sub);
+                return;
+            }
+            admin_enquiry_list();
             return;
 
         case 'categories':
@@ -114,21 +136,29 @@ function admin_dashboard(): void
         'no_image'   => (int) Database::scalar(
             'SELECT COUNT(*) FROM products p
               WHERE NOT EXISTS (SELECT 1 FROM product_images i WHERE i.product_id = p.id)'),
-        // Two "still to fill in" counts, so an import that is only part-done
-        // is visible on the dashboard instead of having to be gone looking for.
+        // "Still to fill in" counts, so an import that is only part-done is
+        // visible on the dashboard instead of having to be gone looking for.
         'no_origin'  => OriginRepository::unsetCount(),
         'no_price'   => (int) Database::scalar(
-            'SELECT COUNT(*) FROM products WHERE is_active = 1 AND price IS NULL'),
+            'SELECT COUNT(*) FROM products p
+              WHERE p.is_active = 1
+                AND NOT EXISTS (SELECT 1 FROM product_pricing pr
+                                 WHERE pr.product_id = p.id AND pr.price IS NOT NULL)'),
+        'new_enquiries' => EnquiryRepository::countNew(),
     ];
 
     view('admin/dashboard', [
         'title'  => 'Dashboard',
         'stats'  => $stats,
         'recent' => Database::all(
-            'SELECT p.id, p.name, p.slug, p.price, p.stock_status, p.is_active, p.updated_at,
+            'SELECT p.id, p.name, p.slug, p.stock_status, p.is_active, p.updated_at,
                     c.name AS category_name
                FROM products p LEFT JOIN categories c ON c.id = p.category_id
               ORDER BY p.updated_at DESC LIMIT 8'),
+        'recentEnquiries' => Database::all(
+            'SELECT e.id, e.reference, e.company, e.contact_name, e.status, e.created_at,
+                    (SELECT COUNT(*) FROM enquiry_items ei WHERE ei.enquiry_id = e.id) AS item_count
+               FROM enquiries e ORDER BY e.created_at DESC LIMIT 6'),
         'attention' => Database::all(
             "SELECT id, name, stock_status FROM products
               WHERE stock_status IN ('out_of_stock','low_stock') AND is_active = 1
@@ -195,8 +225,6 @@ function admin_product_validate(array $in, ?int $id): array
         'origin_id'         => (string) ($in['origin_id'] ?? ''),
         'short_description' => trim((string) ($in['short_description'] ?? '')),
         'description'       => trim((string) ($in['description'] ?? '')),
-        'price'             => trim((string) ($in['price'] ?? '')),
-        'sale_price'        => trim((string) ($in['sale_price'] ?? '')),
         'stock_status'      => (string) ($in['stock_status'] ?? 'made_to_order'),
         'stock_qty'         => trim((string) ($in['stock_qty'] ?? '')),
         'brand'             => trim((string) ($in['brand'] ?? '')),
@@ -212,22 +240,8 @@ function admin_product_validate(array $in, ?int $id): array
         $errors['name'] = 'Name is too long (200 characters max).';
     }
 
-    // An empty price is valid - it means "on request". Only a filled-in one
-    // has to be a sensible number.
-    if ($data['price'] !== '' && (!is_numeric($data['price']) || (float) $data['price'] < 0)) {
-        $errors['price'] = 'Enter a price of 0 or more, or leave it blank to quote on request.';
-    }
-    if ($data['sale_price'] !== '') {
-        if (!is_numeric($data['sale_price']) || (float) $data['sale_price'] < 0) {
-            $errors['sale_price'] = 'Sale price must be a number.';
-        } elseif ($data['price'] === '') {
-            // Otherwise the product page has a sale price struck through
-            // against nothing, and the card shows a discount off no figure.
-            $errors['sale_price'] = 'A sale price needs a regular price to be reduced from.';
-        } elseif (is_numeric($data['price']) && (float) $data['sale_price'] >= (float) $data['price']) {
-            $errors['sale_price'] = 'Sale price should be lower than the regular price.';
-        }
-    }
+    // There is no price on this form. Internal pricing is entered on the price
+    // sheet under Pricing, which writes to product_pricing.
     if ($data['stock_qty'] !== '' && !ctype_digit($data['stock_qty'])) {
         $errors['stock_qty'] = 'Stock quantity must be a whole number.';
     }
@@ -592,7 +606,8 @@ function admin_origin_delete(): void
 function admin_settings(): void
 {
     $keys = ['site_name', 'site_tagline', 'currency_code', 'currency_symbol',
-             'per_page', 'price_request_label', 'contact_email', 'contact_phone'];
+             'per_page', 'price_request_label', 'contact_email', 'contact_phone',
+             'enquiry_notify_email', 'enquiry_intro'];
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         csrf_check();
@@ -605,6 +620,14 @@ function admin_settings(): void
             // at all where a price belongs.
             if ($k === 'price_request_label' && $val === '') {
                 $val = 'Price on request';
+            }
+            // A typo here silently stops the notifications rather than
+            // erroring, so it is rejected at the point it is entered.
+            if ($k === 'enquiry_notify_email' && $val !== ''
+                && !filter_var($val, FILTER_VALIDATE_EMAIL)) {
+                flash('error', 'That notification email address is not valid, so it was not saved. '
+                    . 'Enquiries still appear in the admin panel.');
+                continue;
             }
             Database::run(
                 'INSERT INTO settings (setting_key, setting_value) VALUES (?, ?)
@@ -645,4 +668,440 @@ function admin_password(): void
     }
 
     view('admin/password', ['title' => 'Change password'], 'admin/layout');
+}
+
+// ---------------------------------------------------------------------------
+// Internal price sheet
+//
+// This is the only part of the application that reads or writes
+// product_pricing. It sits behind Auth::requireLogin() like every other admin
+// route, and nothing on the public side links to it or knows it exists.
+// ---------------------------------------------------------------------------
+
+function admin_pricing_filters(): array
+{
+    $ids = [];
+    // "Open in the price sheet" from an enquiry passes the product ids along,
+    // so a quote can be built from exactly the lines the buyer asked about.
+    if (!empty($_GET['ids'])) {
+        $ids = array_slice(array_filter(array_map('intval',
+            explode(',', (string) $_GET['ids']))), 0, 200);
+    }
+
+    return [
+        'category_id' => (int) ($_GET['category_id'] ?? 0),
+        'origin_id'   => ($_GET['origin_id'] ?? '') === 'none'
+                            ? 'none' : (int) ($_GET['origin_id'] ?? 0),
+        'q'           => trim((string) ($_GET['q'] ?? '')),
+        'priced'      => (string) ($_GET['priced'] ?? ''),
+        'expiring'    => !empty($_GET['expiring']),
+        'ids'         => $ids,
+    ];
+}
+
+function admin_pricing_sheet(): void
+{
+    $filters = admin_pricing_filters();
+
+    view('admin/pricing_sheet', [
+        'title'      => 'Internal price sheet',
+        'rows'       => PricingRepository::sheet($filters),
+        'filters'    => $filters,
+        'stats'      => PricingRepository::stats(),
+        'categories' => CategoryRepository::all(),
+        'origins'    => OriginRepository::options(),
+        'incoterms'  => PricingRepository::INCOTERMS,
+    ], 'admin/layout');
+}
+
+/**
+ * Save the whole visible sheet in one POST.
+ *
+ * Only the rows actually rendered are submitted, and each carries its product
+ * id, so saving a filtered view touches those products and leaves the rest
+ * alone. A row cleared of every value deletes its pricing record rather than
+ * storing a set of NULLs - see PricingRepository::save().
+ */
+function admin_pricing_save(): void
+{
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        redirect('admin/pricing');
+    }
+    csrf_check();
+
+    $rows = $_POST['row'] ?? [];
+    if (!is_array($rows)) {
+        $rows = [];
+    }
+
+    $saved  = 0;
+    $errors = [];
+
+    foreach ($rows as $productId => $data) {
+        $productId = (int) $productId;
+        if ($productId <= 0 || !is_array($data)) {
+            continue;
+        }
+
+        $rowErrors = PricingRepository::validate($data);
+        if ($rowErrors) {
+            // Name the product rather than the row number - by the time this is
+            // read the sheet has been re-sorted and "row 14" means nothing.
+            $name = Database::scalar('SELECT name FROM products WHERE id = ?', [$productId])
+                    ?: ('product #' . $productId);
+            foreach ($rowErrors as $msg) {
+                $errors[] = $name . ': ' . $msg;
+            }
+            continue;
+        }
+
+        PricingRepository::save($productId, $data);
+        $saved++;
+    }
+
+    if ($errors) {
+        // The valid rows are already written, so say exactly that instead of
+        // implying the whole save was rolled back.
+        flash('error', 'Saved ' . $saved . ' row' . ($saved === 1 ? '' : 's') . '. '
+            . count($errors) . ' had a problem: ' . implode(' | ', array_slice($errors, 0, 5))
+            . (count($errors) > 5 ? ' (and ' . (count($errors) - 5) . ' more)' : ''));
+    } else {
+        flash('success', 'Price sheet saved - ' . $saved . ' row'
+            . ($saved === 1 ? '' : 's') . ' updated.');
+    }
+
+    // Keep whatever filter the sheet was showing.
+    $keep = array_intersect_key($_POST, array_flip(
+        ['category_id', 'origin_id', 'q', 'priced', 'expiring', 'ids']));
+    redirect('admin/pricing' . ($keep ? '?' . http_build_query(array_filter($keep, 'strlen')) : ''));
+}
+
+/**
+ * Download the sheet as CSV.
+ *
+ * CSV rather than a real .xlsx because Excel, Numbers and Sheets all open it
+ * natively and it needs no library on the host - this project has no Composer
+ * dependencies and adding one for a download would be a poor trade.
+ */
+function admin_pricing_export(): void
+{
+    $rows = PricingRepository::sheet(admin_pricing_filters());
+
+    $filename = 'ds-price-sheet-' . date('Y-m-d') . '.csv';
+    header('Content-Type: text/csv; charset=utf-8');
+    header('Content-Disposition: attachment; filename="' . $filename . '"');
+    header('Cache-Control: no-store, private');
+    header('X-Content-Type-Options: nosniff');
+
+    $out = fopen('php://output', 'w');
+
+    // Excel reads a bare UTF-8 CSV as the system codepage and turns accented
+    // names into mojibake. The BOM is what makes it pick UTF-8.
+    fwrite($out, "\xEF\xBB\xBF");
+
+    fputcsv($out, ['SKU', 'Product', 'Category', 'Origin', 'Availability',
+                   'Price', 'Currency', 'Per', 'MOQ', 'Incoterm',
+                   'Valid until', 'Supplier', 'Notes', 'Updated', 'Listed']);
+
+    foreach ($rows as $r) {
+        fputcsv($out, [
+            $r['sku'],
+            $r['name'],
+            $r['category_name'],
+            $r['origin_name'],
+            stock_label($r['stock_status']),
+            $r['price'],
+            $r['price'] === null ? '' : $r['currency'],
+            $r['price_unit'],
+            $r['moq'],
+            $r['incoterm'],
+            $r['valid_until'],
+            $r['supplier'],
+            $r['notes'],
+            $r['updated_at'],
+            (int) $r['is_active'] === 1 ? 'yes' : 'no',
+        ]);
+    }
+    fclose($out);
+    exit;
+}
+
+// ---------------------------------------------------------------------------
+// Enquiries
+// ---------------------------------------------------------------------------
+
+function admin_enquiry_list(): void
+{
+    $filters = [
+        'status' => (string) ($_GET['status'] ?? ''),
+        'q'      => trim((string) ($_GET['q'] ?? '')),
+    ];
+    $page   = max(1, (int) ($_GET['page'] ?? 1));
+    $result = EnquiryRepository::listing($filters, $page);
+
+    view('admin/enquiries_list', [
+        'title'   => 'Enquiries',
+        'result'  => $result,
+        'filters' => $filters,
+    ], 'admin/layout');
+}
+
+function admin_enquiry_show(int $id): void
+{
+    $enquiry = EnquiryRepository::find($id);
+    if (!$enquiry) {
+        not_found('That enquiry does not exist.');
+    }
+
+    $items = EnquiryRepository::items($id);
+
+    view('admin/enquiry_show', [
+        'title'    => 'Enquiry ' . $enquiry['reference'],
+        'enquiry'  => $enquiry,
+        'items'    => $items,
+        // The internal figures for exactly the products asked about, so the
+        // quote can be put together without leaving the page.
+        'pricing'  => PricingRepository::forProducts(
+                          array_column($items, 'product_id')),
+        'statuses' => EnquiryRepository::STATUSES,
+    ], 'admin/layout');
+}
+
+function admin_enquiry_update(): void
+{
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        redirect('admin/enquiries');
+    }
+    csrf_check();
+
+    $id = (int) ($_POST['id'] ?? 0);
+    if (!$id || !EnquiryRepository::find($id)) {
+        not_found('That enquiry does not exist.');
+    }
+
+    EnquiryRepository::updateStatus($id,
+        (string) ($_POST['status'] ?? 'new'),
+        (string) ($_POST['admin_notes'] ?? ''));
+
+    flash('success', 'Enquiry updated.');
+    redirect('admin/enquiries/' . $id);
+}
+
+function admin_enquiry_delete(): void
+{
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        redirect('admin/enquiries');
+    }
+    csrf_check();
+
+    $id = (int) ($_POST['id'] ?? 0);
+    if ($id) {
+        EnquiryRepository::delete($id);
+        flash('success', 'Enquiry deleted.');
+    }
+    redirect('admin/enquiries');
+}
+
+/**
+ * One enquiry as a CSV quote sheet, with the internal figures alongside each
+ * line. This is an internal working document, not something to forward to the
+ * buyer as-is.
+ */
+function admin_enquiry_export(int $id): void
+{
+    $enquiry = EnquiryRepository::find($id);
+    if (!$enquiry) {
+        not_found('That enquiry does not exist.');
+    }
+
+    $items   = EnquiryRepository::items($id);
+    $pricing = PricingRepository::forProducts(array_column($items, 'product_id'));
+
+    header('Content-Type: text/csv; charset=utf-8');
+    header('Content-Disposition: attachment; filename="' . $enquiry['reference'] . '.csv"');
+    header('Cache-Control: no-store, private');
+    header('X-Content-Type-Options: nosniff');
+
+    $out = fopen('php://output', 'w');
+    fwrite($out, "\xEF\xBB\xBF");
+
+    fputcsv($out, ['Enquiry', $enquiry['reference']]);
+    fputcsv($out, ['Received', $enquiry['created_at']]);
+    fputcsv($out, ['Company', $enquiry['company']]);
+    fputcsv($out, ['Contact', $enquiry['contact_name']]);
+    fputcsv($out, ['Email', $enquiry['email']]);
+    fputcsv($out, ['Phone', $enquiry['phone']]);
+    fputcsv($out, ['Country', $enquiry['country']]);
+    fputcsv($out, ['Destination', $enquiry['destination']]);
+    fputcsv($out, ['Incoterm', $enquiry['incoterm']]);
+    fputcsv($out, ['Message', $enquiry['message']]);
+    fputcsv($out, []);
+    fputcsv($out, ['SKU', 'Product', 'Quantity wanted', 'Buyer notes',
+                   'Internal price', 'Currency', 'Per', 'MOQ', 'Incoterm',
+                   'Valid until', 'Supplier', 'Internal notes']);
+
+    foreach ($items as $it) {
+        $p = $pricing[(int) $it['product_id']] ?? null;
+        fputcsv($out, [
+            $it['product_sku'],
+            $it['product_name'],
+            $it['quantity'],
+            $it['notes'],
+            $p['price']       ?? '',
+            ($p && $p['price'] !== null) ? $p['currency'] : '',
+            $p['price_unit']  ?? '',
+            $p['moq']         ?? '',
+            $p['incoterm']    ?? '',
+            $p['valid_until'] ?? '',
+            $p['supplier']    ?? '',
+            $p['notes']       ?? '',
+        ]);
+    }
+    fclose($out);
+    exit;
+}
+
+// ---------------------------------------------------------------------------
+// Bulk image upload
+//
+// 197 products is far too many to attach photos to one form at a time. This
+// takes a folder of files and matches each one to a product by its filename.
+// ---------------------------------------------------------------------------
+
+/**
+ * Reduce a filename to something matchable: drop the extension, drop a
+ * trailing "-1"/"(2)" copy marker, and flatten punctuation to single hyphens.
+ * "Fresh Young Coconut (2).jpg" and "fresh-young-coconut-2.JPG" both land on
+ * "fresh-young-coconut".
+ */
+function bulk_image_key(string $filename): string
+{
+    $base = pathinfo($filename, PATHINFO_FILENAME);
+    $base = preg_replace('/[\s_]*\(\d+\)\s*$/', '', $base);     // "name (2)"
+    $base = preg_replace('/[-_\s]+\d+$/', '', $base);           // "name-2", "name 2"
+    return slugify($base);
+}
+
+function admin_bulk_images(): void
+{
+    $report = $_SESSION['bulk_image_report'] ?? null;
+    unset($_SESSION['bulk_image_report']);
+
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        csrf_check();
+        $report = admin_bulk_images_process();
+        $_SESSION['bulk_image_report'] = $report;
+        redirect('admin/products/bulk-images');
+    }
+
+    view('admin/bulk_images', [
+        'title'  => 'Bulk image upload',
+        'report' => $report,
+        // Shown so it is obvious what the filenames need to look like.
+        'sample' => Database::all(
+            'SELECT p.name, p.slug, p.sku FROM products p
+              WHERE NOT EXISTS (SELECT 1 FROM product_images i WHERE i.product_id = p.id)
+              ORDER BY p.name LIMIT 12'),
+        'missing' => (int) Database::scalar(
+            'SELECT COUNT(*) FROM products p
+              WHERE NOT EXISTS (SELECT 1 FROM product_images i WHERE i.product_id = p.id)'),
+    ], 'admin/layout');
+}
+
+/** Returns ['matched' => [...], 'skipped' => [...], 'failed' => [...]]. */
+function admin_bulk_images_process(): array
+{
+    $report = ['matched' => [], 'skipped' => [], 'failed' => []];
+
+    $files = $_FILES['images'] ?? null;
+    if (!$files || !is_array($files['name'])) {
+        $report['failed'][] = ['file' => '-', 'why' => 'No files were received.'];
+        return $report;
+    }
+
+    // Build the lookup once. Three ways in, most specific first: exact SKU,
+    // then the product slug, then the slugified name. A filename that matches
+    // more than one product is reported rather than guessed at.
+    $products = Database::all('SELECT id, name, slug, sku FROM products');
+    $bySku = $byKey = [];
+    foreach ($products as $p) {
+        if ($p['sku']) {
+            $bySku[strtolower($p['sku'])] = $p;
+        }
+        foreach ([$p['slug'], slugify($p['name'])] as $k) {
+            if ($k === '') {
+                continue;
+            }
+            // A key that two products share is ambiguous, so it is marked
+            // rather than silently resolving to whichever was read first.
+            $byKey[$k] = isset($byKey[$k]) && $byKey[$k]['id'] !== $p['id'] ? false : $p;
+        }
+    }
+
+    $replace = !empty($_POST['replace_existing']);
+    $count   = count($files['name']);
+
+    for ($i = 0; $i < $count; $i++) {
+        $name = (string) $files['name'][$i];
+        if ($name === '' || $files['error'][$i] === UPLOAD_ERR_NO_FILE) {
+            continue;
+        }
+
+        $key     = bulk_image_key($name);
+        $skuKey  = strtolower(pathinfo($name, PATHINFO_FILENAME));
+        $product = $bySku[$skuKey] ?? ($byKey[$key] ?? null);
+
+        if ($product === false) {
+            $report['skipped'][] = ['file' => $name,
+                'why' => 'More than one product matches "' . $key . '" - rename it to the product slug.'];
+            continue;
+        }
+        if (!$product) {
+            $report['skipped'][] = ['file' => $name,
+                'why' => 'No product matches "' . $key . '".'];
+            continue;
+        }
+
+        $existing = (int) Database::scalar(
+            'SELECT COUNT(*) FROM product_images WHERE product_id = ?', [$product['id']]);
+        if ($existing && !$replace) {
+            $report['skipped'][] = ['file' => $name,
+                'why' => $product['name'] . ' already has ' . $existing . ' image'
+                       . ($existing === 1 ? '' : 's') . '.'];
+            continue;
+        }
+
+        try {
+            // Same hardened path as the single-product upload: MIME sniffed
+            // from the bytes, re-encoded through GD, filename generated here.
+            $stored = ImageUploader::store([
+                'name'     => $name,
+                'type'     => $files['type'][$i],
+                'tmp_name' => $files['tmp_name'][$i],
+                'error'    => $files['error'][$i],
+                'size'     => $files['size'][$i],
+            ]);
+        } catch (Throwable $e) {
+            $report['failed'][] = ['file' => $name, 'why' => $e->getMessage()];
+            continue;
+        }
+
+        if ($existing && $replace) {
+            foreach (ProductRepository::images((int) $product['id']) as $old) {
+                ImageUploader::delete($old['file_path']);
+            }
+            Database::run('DELETE FROM product_images WHERE product_id = ?', [$product['id']]);
+            $existing = 0;
+        }
+
+        Database::run(
+            'INSERT INTO product_images (product_id, file_path, alt_text, is_primary, sort_order)
+             VALUES (?, ?, ?, ?, ?)',
+            [$product['id'], $stored, $product['name'], $existing === 0 ? 1 : 0, $existing]);
+
+        $report['matched'][] = ['file' => $name, 'product' => $product['name'],
+                                'id' => (int) $product['id']];
+    }
+
+    return $report;
 }

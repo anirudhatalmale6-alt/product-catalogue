@@ -36,11 +36,16 @@
     <span class="stat-label">No origin set</span>
     <span class="stat-note">Live products missing a country</span>
   </a>
-  <div class="stat">
+  <a class="stat" href="<?= url('admin/pricing', ['priced' => 'no']) ?>">
     <span class="stat-num"><?= $stats['no_price'] ?></span>
-    <span class="stat-label">Quoted on request</span>
-    <span class="stat-note">Live products with no price</span>
-  </div>
+    <span class="stat-label">No internal price</span>
+    <span class="stat-note">Live products missing a figure on the price sheet</span>
+  </a>
+  <a class="stat <?= $stats['new_enquiries'] ? 'stat-alert' : '' ?>" href="<?= url('admin/enquiries', ['status' => 'new']) ?>">
+    <span class="stat-num"><?= $stats['new_enquiries'] ?></span>
+    <span class="stat-label">New enquiries</span>
+    <span class="stat-note">Shortlists waiting for a reply</span>
+  </a>
 </div>
 
 <div class="adm-cols">
@@ -53,7 +58,7 @@
       <p class="panel-empty">No products yet. <a href="<?= url('admin/products/new') ?>">Add the first one.</a></p>
     <?php else: ?>
       <table class="table">
-        <thead><tr><th>Product</th><th>Category</th><th>Price</th><th>Status</th><th></th></tr></thead>
+        <thead><tr><th>Product</th><th>Category</th><th>Status</th><th></th></tr></thead>
         <tbody>
         <?php foreach ($recent as $p): ?>
           <tr>
@@ -62,7 +67,6 @@
               <?php if (!$p['is_active']): ?><span class="tag tag-muted">Hidden</span><?php endif; ?>
             </td>
             <td class="muted"><?= e($p['category_name'] ?? '&mdash;') ?></td>
-            <td class="mono"><?= $p['price'] === null ? '<span class="muted">On request</span>' : money($p['price']) ?></td>
             <td><span class="tag tag-<?= stock_class($p['stock_status']) ?>"><?= e(stock_label($p['stock_status'])) ?></span></td>
             <td class="right"><a class="btn btn-sm" href="<?= url('product/' . $p['slug']) ?>" target="_blank" rel="noopener">View</a></td>
           </tr>
@@ -87,12 +91,35 @@
       </ul>
     <?php endif; ?>
 
+    <div class="panel-head" style="margin-top:1.5rem">
+      <h2>Latest enquiries</h2>
+      <a href="<?= url('admin/enquiries') ?>">All enquiries &rarr;</a>
+    </div>
+    <?php if (!$recentEnquiries): ?>
+      <p class="panel-empty">No enquiries yet.</p>
+    <?php else: ?>
+      <ul class="simple-list">
+        <?php foreach ($recentEnquiries as $en): ?>
+          <li>
+            <a href="<?= url('admin/enquiries/' . $en['id']) ?>">
+              <span class="mono"><?= e($en['reference']) ?></span>
+              <?= e($en['company'] ?: $en['contact_name']) ?>
+            </a>
+            <span class="muted"><?= (int) $en['item_count'] ?> item<?= (int) $en['item_count'] === 1 ? '' : 's' ?></span>
+            <span class="tag tag-<?= e($en['status']) ?>"><?= e(EnquiryRepository::statusLabel($en['status'])) ?></span>
+          </li>
+        <?php endforeach; ?>
+      </ul>
+    <?php endif; ?>
+
     <div class="panel-head" style="margin-top:1.5rem"><h2>Quick actions</h2></div>
     <ul class="simple-list">
       <li><a href="<?= url('admin/products/new') ?>">Add a product</a></li>
+      <li><a href="<?= url('admin/products/bulk-images') ?>">Upload photographs in bulk</a></li>
+      <li><a href="<?= url('admin/pricing') ?>">Fill in the internal price sheet</a></li>
       <li><a href="<?= url('admin/categories/new') ?>">Add a category</a></li>
       <li><a href="<?= url('admin/origins') ?>">Manage origins</a></li>
-      <li><a href="<?= url('admin/settings') ?>">Change site name or currency</a></li>
+      <li><a href="<?= url('admin/settings') ?>">Change site name or contact details</a></li>
     </ul>
   </section>
 </div>

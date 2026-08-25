@@ -10,9 +10,11 @@
  *
  * WHAT THIS SCRIPT WILL AND WILL NOT WRITE
  *
- * Every product is loaded with no price. That is not an omission: on an export
- * catalogue a figure depends on volume and incoterm, so the item shows
- * "Price on request" until someone types one in.
+ * No pricing is loaded, and there is nowhere public for it to go. The
+ * catalogue is buyer-facing and shows no prices at all - on an export line the
+ * figure depends on volume, packing and incoterm, so it is quoted per enquiry.
+ * Internal figures live in product_pricing and are entered on the admin price
+ * sheet; nothing on the public side reads that table.
  *
  * Specifications are only written when the item's own name states them - the
  * form ("Frozen", "Freeze-dried", "Vacuum-fried"), and for the medical lines
@@ -218,6 +220,29 @@ function derive_origin(string $category, string $name, array $originIds): ?int
 
 // ---------------------------------------------------------------------------
 
+// This script REPLACES the whole catalogue, and emptying products takes
+// product_pricing down with it and blanks the product on every stored enquiry
+// line. That is fine on a first run and destructive on any later one, so it
+// refuses once there is real data to lose.
+$existingPricing   = (int) Database::scalar('SELECT COUNT(*) FROM product_pricing');
+$existingEnquiries = (int) Database::scalar('SELECT COUNT(*) FROM enquiries');
+
+if (($existingPricing || $existingEnquiries) && !in_array('--force', $argv, true)) {
+    fwrite(STDERR, sprintf(
+        "REFUSING TO RUN.\n\n"
+      . "This reloads the catalogue from scratch and would destroy data that is\n"
+      . "already here:\n"
+      . "  %d internal price sheet row%s\n"
+      . "  %d buyer enquir%s (their lines would lose the product they point at)\n\n"
+      . "This script is for the FIRST load only. To add or change products after\n"
+      . "that, use the admin panel.\n\n"
+      . "If you really do mean to wipe and reload, back the database up first and\n"
+      . "then re-run with --force.\n",
+        $existingPricing, $existingPricing === 1 ? '' : 's',
+        $existingEnquiries, $existingEnquiries === 1 ? 'y' : 'ies'));
+    exit(1);
+}
+
 Database::run('SET FOREIGN_KEY_CHECKS = 0');
 foreach (['product_specs', 'product_images', 'products', 'categories', 'origins'] as $t) {
     Database::run("TRUNCATE TABLE {$t}");
@@ -272,9 +297,9 @@ foreach ($ITEMS as $catName => $items) {
 
         $productId = Database::insert(
             'INSERT INTO products
-                (category_id, origin_id, name, slug, short_description, price, sale_price,
+                (category_id, origin_id, name, slug, short_description,
                  stock_status, brand, is_active, is_featured, sort_order)
-             VALUES (?, ?, ?, ?, ?, NULL, NULL, ?, ?, 1, ?, ?)',
+             VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)',
             [$catIds[$catName], $originId, $name, unique_slug('products', slugify($name)),
              $short, 'made_to_order', $brand,
              in_array($name, $MULTI_VIEW, true) ? 1 : 0, $sortOrder++]);
@@ -307,5 +332,6 @@ printf("Loaded %d categories, %d origins, %d products, %d spec rows, %d image ro
     count($catIds), count($originIds), $productCount, $specCount, $imageCount);
 printf("Origin set from the supplier list on %d of %d products; %d left as 'not specified'.\n",
     $withOrigin, $productCount, $productCount - $withOrigin);
-echo "Every product loaded with no price - they show 'Price on request'.\n";
+echo "No pricing is loaded. The catalogue shows none at all; internal figures\n"
+   . "go in product_pricing through Admin -> Price sheet.\n";
 echo "Now run:  php tools/generate_placeholder_images.php\n";

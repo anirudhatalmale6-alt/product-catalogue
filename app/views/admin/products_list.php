@@ -4,6 +4,7 @@
     <p class="adm-sub"><?= (int) $result['total'] ?> product<?= $result['total'] === 1 ? '' : 's' ?> in the catalogue.</p>
   </div>
   <div class="adm-head-actions">
+    <a class="btn btn-ghost" href="<?= url('admin/products/bulk-images') ?>">Bulk image upload</a>
     <a class="btn btn-primary" href="<?= url('admin/products/new') ?>">+ New product</a>
   </div>
 </div>
@@ -25,7 +26,7 @@
     <?php endforeach; ?>
   </select>
   <select name="sort">
-    <?php foreach (['newest'=>'Newest','name_asc'=>'Name A-Z','price_asc'=>'Price low-high','price_desc'=>'Price high-low'] as $k=>$v): ?>
+    <?php foreach (['newest'=>'Newest','name_asc'=>'Name A-Z','name_desc'=>'Name Z-A','origin'=>'Origin'] as $k=>$v): ?>
       <option value="<?= $k ?>" <?= $filters['sort'] === $k ? 'selected' : '' ?>><?= $v ?></option>
     <?php endforeach; ?>
   </select>
@@ -45,7 +46,6 @@
       <th>SKU</th>
       <th>Category</th>
       <th>Origin</th>
-      <th>Price</th>
       <th>Availability</th>
       <th>Images</th>
       <th></th>
@@ -65,15 +65,6 @@
       <td class="muted col-sku"><?= e($p['sku'] ?: '—') ?></td>
       <td class="muted"><?= e($p['category_name'] ?: '—') ?></td>
       <td class="<?= $p['origin_name'] ? 'muted' : 'warn-text' ?>"><?= e($p['origin_name'] ?: 'Not set') ?></td>
-      <td class="mono">
-        <?php if ($p['sale_price'] !== null): ?>
-          <strong><?= money($p['sale_price']) ?></strong> <s class="muted"><?= money($p['price']) ?></s>
-        <?php elseif ($p['price'] === null): ?>
-          <span class="muted">On request</span>
-        <?php else: ?>
-          <?= money($p['price']) ?>
-        <?php endif; ?>
-      </td>
       <td><span class="tag tag-<?= stock_class($p['stock_status']) ?>"><?= e(stock_label($p['stock_status'])) ?></span></td>
       <td class="<?= (int) $p['image_count'] === 0 ? 'warn-text' : 'muted' ?>"><?= (int) $p['image_count'] ?></td>
       <td class="right nowrap">

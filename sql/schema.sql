@@ -8,6 +8,9 @@
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
+DROP TABLE IF EXISTS enquiry_items;
+DROP TABLE IF EXISTS enquiries;
+DROP TABLE IF EXISTS product_pricing;
 DROP TABLE IF EXISTS product_specs;
 DROP TABLE IF EXISTS product_images;
 DROP TABLE IF EXISTS products;
@@ -73,10 +76,11 @@ CREATE TABLE origins (
 -- stock_status is the human-facing availability shown on the front-end.
 -- stock_qty is optional bookkeeping; leave NULL if you do not track counts.
 --
--- price is NULLABLE on purpose. For export sourcing a figure usually depends
--- on volume and incoterm, so an item with no price is not an incomplete
--- record - it is a "price on request" line. The listing renders it that way
--- and the price filter skips those rows rather than treating them as zero.
+-- There is deliberately NO price column here. The catalogue is buyer-facing
+-- and carries no pricing at all; commercial terms live in product_pricing,
+-- which is admin-only. Keeping them in a separate table rather than behind a
+-- "show prices" flag means the public queries do not select the figures in the
+-- first place, so no setting, template edit or stray var_dump can leak one.
 -- ---------------------------------------------------------------------------
 CREATE TABLE products (
     id                INT UNSIGNED   NOT NULL AUTO_INCREMENT,
@@ -87,8 +91,6 @@ CREATE TABLE products (
     slug              VARCHAR(220)   NOT NULL,
     short_description VARCHAR(300)   NULL,
     description       TEXT           NULL,
-    price             DECIMAL(12,2)  NULL DEFAULT NULL,
-    sale_price        DECIMAL(12,2)  NULL,
     stock_status      ENUM('in_stock','low_stock','out_of_stock','preorder',
                            'made_to_order','discontinued')
                                      NOT NULL DEFAULT 'made_to_order',
@@ -107,7 +109,6 @@ CREATE TABLE products (
     KEY idx_products_origin (origin_id),
     KEY idx_products_active (is_active),
     KEY idx_products_status (stock_status),
-    KEY idx_products_price (price),
     KEY idx_products_name (name),
     KEY idx_products_brand (brand),
     CONSTRAINT fk_products_category FOREIGN KEY (category_id)
@@ -151,6 +152,97 @@ CREATE TABLE product_specs (
     KEY idx_specs_product (product_id, sort_order),
     CONSTRAINT fk_specs_product FOREIGN KEY (product_id)
         REFERENCES products (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------------
+-- Internal pricing. NOT public. Nothing outside the admin panel reads this
+-- table, and ProductRepository's public methods never join it.
+--
+-- One row per product at most, so the product id is the primary key - there is
+-- no separate id to get out of step with the product. A product with no row
+-- here simply has no internal price yet.
+--
+-- A figure on its own is meaningless on an export line, so the terms that
+-- qualify it live beside it: what the price is per, the minimum order, the
+-- incoterm it assumes and how long it holds. price_unit and incoterm are free
+-- text rather than enums because the useful vocabulary here is the client's,
+-- not something worth a migration every time a new packing format appears.
+-- ---------------------------------------------------------------------------
+CREATE TABLE product_pricing (
+    product_id  INT UNSIGNED  NOT NULL,
+    price       DECIMAL(12,2) NULL,
+    currency    CHAR(3)       NOT NULL DEFAULT 'CAD',
+    price_unit  VARCHAR(60)   NULL,      -- per kg, per 10kg carton, per 20ft FCL
+    moq         VARCHAR(60)   NULL,      -- minimum order quantity, as written
+    incoterm    VARCHAR(20)   NULL,      -- FOB Bangkok, CIF Vancouver, EXW...
+    valid_until DATE          NULL,
+    supplier    VARCHAR(160)  NULL,
+    notes       VARCHAR(400)  NULL,
+    updated_at  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP
+                              ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (product_id),
+    KEY idx_pricing_valid (valid_until),
+    CONSTRAINT fk_pricing_product FOREIGN KEY (product_id)
+        REFERENCES products (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------------
+-- Buyer enquiries. A buyer shortlists items as they browse, then submits the
+-- shortlist with their details. The shortlist itself lives in the browser
+-- until that point - nothing is written here until someone presses send, so
+-- browsing leaves no record and there is no session or login to maintain.
+--
+-- reference is the human handle ("DS-2608-0042") used in correspondence, kept
+-- separate from the auto-increment id so ids are never quoted at a buyer.
+-- ---------------------------------------------------------------------------
+CREATE TABLE enquiries (
+    id           INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    reference    VARCHAR(24)  NOT NULL,
+    company      VARCHAR(160) NULL,
+    contact_name VARCHAR(120) NOT NULL,
+    email        VARCHAR(190) NOT NULL,
+    phone        VARCHAR(60)  NULL,
+    country      VARCHAR(120) NULL,
+    destination  VARCHAR(160) NULL,      -- port or city they want it delivered to
+    incoterm     VARCHAR(20)  NULL,
+    message      TEXT         NULL,
+    status       ENUM('new','in_progress','quoted','closed') NOT NULL DEFAULT 'new',
+    admin_notes  TEXT         NULL,
+    ip_address   VARBINARY(16) NULL,
+    created_at   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP
+                              ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_enquiries_reference (reference),
+    KEY idx_enquiries_status (status, created_at),
+    KEY idx_enquiries_created (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------------
+-- The lines on an enquiry.
+--
+-- product_id is nullable and set to NULL if the product is later deleted, but
+-- the name and SKU are SNAPSHOT here as text. An enquiry is a record of what
+-- someone actually asked for; if it only pointed at products, deleting a
+-- discontinued line would quietly rewrite last month's enquiries into
+-- something the buyer never sent.
+-- ---------------------------------------------------------------------------
+CREATE TABLE enquiry_items (
+    id           INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    enquiry_id   INT UNSIGNED NOT NULL,
+    product_id   INT UNSIGNED NULL,
+    product_name VARCHAR(200) NOT NULL,
+    product_sku  VARCHAR(64)  NULL,
+    quantity     VARCHAR(60)  NULL,      -- "2 x 40ft", "500 kg" - buyer's words
+    notes        VARCHAR(300) NULL,
+    sort_order   INT          NOT NULL DEFAULT 0,
+    PRIMARY KEY (id),
+    KEY idx_enquiry_items_enquiry (enquiry_id, sort_order),
+    KEY idx_enquiry_items_product (product_id),
+    CONSTRAINT fk_enquiry_items_enquiry FOREIGN KEY (enquiry_id)
+        REFERENCES enquiries (id) ON DELETE CASCADE,
+    CONSTRAINT fk_enquiry_items_product FOREIGN KEY (product_id)
+        REFERENCES products (id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ---------------------------------------------------------------------------
@@ -201,7 +293,9 @@ INSERT INTO settings (setting_key, setting_value) VALUES
     ('per_page',        '24'),
     ('price_request_label', 'Price on request'),
     ('contact_email',   ''),
-    ('contact_phone',   '+1 (236) 516-8502');
+    ('contact_phone',   '+1 (236) 516-8502'),
+    ('enquiry_notify_email', ''),
+    ('enquiry_intro',   'Tell us where the goods are going and roughly what volume you need, and we will come back with pricing and lead times.');
 
 -- ---------------------------------------------------------------------------
 -- No origins, categories or products are seeded here. This file is structure

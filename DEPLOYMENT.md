@@ -35,6 +35,16 @@ image rows. If the second import reports an error part-way through, empty the
 database and start again rather than importing it twice — a half-finished
 import leaves gaps that are hard to spot later.
 
+`schema.sql` also creates `product_pricing` (your internal figures) and
+`enquiries` / `enquiry_items` (buyer enquiries). All three start empty and are
+filled through the admin panel, so there is nothing to import for them.
+
+**Do not run `tools/load_catalogue.php` on a live site.** It rebuilds the
+catalogue from scratch and would take your price sheet and stored enquiries
+with it. It refuses to run once either of those has data in it, but the safe
+habit is to treat it as a first-install tool only and use the admin panel
+afterwards.
+
 ### 3. Upload the files
 
 The important decision is where the domain points.
@@ -207,6 +217,13 @@ Restore in the same order: files, database, uploads, then edit
 - [ ] Admin password changed from whatever you first set
 - [ ] `public/uploads/.htaccess` uploaded (check with your FTP client's
       "show hidden files" option)
-- [ ] Sample products deleted, your own products in
-- [ ] Site name, tagline and currency set in **Settings**
+- [ ] Site name, tagline and contact details set in **Settings**
 - [ ] A backup of the database taken before you start entering real data
+- [ ] A test enquiry sent from the public site and confirmed to appear under
+      **Admin → Enquiries** — this is the one path a buyer actually uses
+- [ ] If you set an **enquiry notification email**, confirm the test enquiry
+      actually arrived. `mail()` depends on the host having working outbound
+      mail and fails quietly; the enquiry is saved either way, so a missing
+      email is easy not to notice
+- [ ] Confirm no price appears anywhere public: enter one figure on the price
+      sheet, then check the product page, the grid and the search results

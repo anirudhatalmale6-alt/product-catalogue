@@ -51,6 +51,12 @@ require APP_DIR . '/lib/ImageUploader.php';
 require APP_DIR . '/lib/ProductRepository.php';
 require APP_DIR . '/lib/CategoryRepository.php';
 require APP_DIR . '/lib/OriginRepository.php';
+require APP_DIR . '/lib/EnquiryRepository.php';
+// PricingRepository is the admin-only half of the split described in the
+// schema, but it is loaded here rather than inside the admin controller so
+// that "which file reads product_pricing" stays a question you answer by
+// grepping for the class name, not by tracing conditional includes.
+require APP_DIR . '/lib/PricingRepository.php';
 
 Database::configure($config['db']);
 

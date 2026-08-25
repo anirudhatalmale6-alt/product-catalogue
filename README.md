@@ -4,11 +4,20 @@ A database-driven catalogue for physical goods: a public browsing front-end
 with category and origin filtering plus search, and an admin panel for adding,
 editing and deleting products, categories, origins and images.
 
+The catalogue is built for a buyer to **shortlist and enquire**, not to buy.
+It shows no prices anywhere. A buyer ticks items as they browse, adds the
+volumes they want, and sends the lot as one enquiry; that lands in the admin
+panel, where it can be opened straight into an internal price sheet and
+exported as a quote.
+
 Built on **PHP 8 + MySQL** with PDO. No framework, no build step, no Composer
 dependencies — upload the files, import two SQL files, edit one config file.
 
-- **Public site:** `/` — catalogue grid, filters, search, product pages
-- **Admin panel:** `/admin` — sign in, then manage everything
+- **Public site:** `/` — catalogue grid, filters, search, product pages,
+  shortlist and enquiry form
+- **Admin panel:** `/admin` — sign in, then manage everything: products,
+  categories, origins, enquiries, the internal price sheet and bulk image
+  upload
 
 Styled to the Disruptive Sourcing brand standards: Industrial Black `#0E0E0E`,
 Performance Red `#C8102E`, Carbon Gray `#2B2B2B`, Steel Gray `#6A6A6A`,
@@ -25,7 +34,7 @@ at run time.
 | `public/` | The only folder the web server needs to serve. Front controller, CSS, JS, fonts, brand artwork, uploaded images. |
 | `app/` | Application code: config, controllers, views and the small library classes. |
 | `sql/` | `schema.sql` (tables and site settings) and `catalogue_data.sql` (the product list). |
-| `tools/` | Command-line helpers: create an admin user, load the catalogue, regenerate placeholder images. |
+| `tools/` | Command-line helpers: create an admin user, load the catalogue, regenerate placeholder images, import the Thai fruit reference data. |
 
 Full install instructions are in **[DEPLOYMENT.md](DEPLOYMENT.md)**.
 A walkthrough of the admin panel is in **[USER-GUIDE.md](USER-GUIDE.md)**.
@@ -58,19 +67,33 @@ Open <http://localhost:8000> for the catalogue and
 
 ```
 categories ──< products ──< product_images
-origins    ──<    │    └──< product_specs
+origins    ──<    │    ├──< product_specs
+                  │    └──< product_pricing   (internal, admin only)
+                  │
+enquiries  ──< enquiry_items ──┘
 ```
 
 **`products`** holds the fields every item has: name, SKU, short and full
-description, price, optional sale price, availability, stock quantity, brand,
-weight, visibility flags.
+description, availability, stock quantity, brand, weight, visibility flags.
 
-**Price is nullable, on purpose.** On an export catalogue the figure depends on
-volume and incoterm, so an item with no price is not an incomplete record — it
-is a "price on request" line. The grid and the product page say so (the wording
-is editable under Settings), the price filter skips those rows rather than
-treating them as `0.00`, and the two price sorts push them to the end instead
-of letting them lead a "low to high" list.
+**There is no price column on `products`.** The catalogue is buyer-facing and
+carries no pricing at all; every item shows "Price on request" (the wording is
+editable under Settings). Commercial terms live in `product_pricing` — price,
+currency, what the price is per, MOQ, incoterm, validity, supplier and notes —
+which is read only by the admin panel, through `PricingRepository`.
+
+That is a deliberate split rather than a "show prices" setting. The public
+queries do not select the figures in the first place, so no toggle, template
+edit or stray `var_dump` can put one on a buyer's screen. `grep -rn
+"product_pricing" app/` returns the schema, that one class, and the admin
+controller — nothing else.
+
+**`enquiries`** is a submitted shortlist. The buyer's shortlist lives in their
+browser until they press send, so browsing writes nothing and there is no login
+or session to keep. Each line stores the product id *and* a snapshot of the
+name and SKU: an enquiry is a record of what somebody actually asked for, and
+deleting a discontinued product should not quietly rewrite last month's
+enquiries into something they never sent.
 
 **`origins`** is country of origin, and it is deliberately a separate dimension
 from categories rather than a second category tree. A buyer wants "Thai frozen
@@ -116,8 +139,11 @@ order" and is the default — for sourcing lines that is honest, where claiming
 Worth stating plainly, because a catalogue that looks complete invites the
 assumption that it is:
 
-- **No prices.** Every product loaded from the source list has none and shows
-  "Price on request". Add them in the admin panel where you want them.
+- **No public prices, by design.** The catalogue shows none and cannot: the
+  buyer-facing pages do not read the pricing table. Your own figures go on the
+  internal price sheet under **Admin → Price sheet**, which exports to CSV.
+- **No prices entered yet.** The price sheet starts empty — 197 rows waiting
+  for figures. Filter it by "Not priced yet" to work through them.
 - **No pack sizes, shelf lives, minimum orders, certifications or HS codes.**
   None were supplied, and each is a commercial claim that would be published
   under your name, so nothing was invented. The category spec templates lay out
@@ -125,8 +151,14 @@ assumption that it is:
 - **No photographs.** `public/uploads/products/catalogue/` holds generated
   placeholder plates that say "image to follow". Uploading a real image against
   a product replaces its placeholder.
-- **No cart, checkout, payments or customer accounts.** This is a catalogue,
-  not a shop.
+- **No cart, checkout or payments.** Buyers shortlist items and send an
+  enquiry; you quote them. There is no customer account and nothing to pay for
+  online.
+- **Enquiry email is optional and unproven on your host.** Enquiries always
+  save to the admin panel. If you set a notification address under Settings, a
+  copy is emailed with PHP's `mail()`, which depends entirely on the host
+  having working outbound mail — treat the admin panel as the record and the
+  email as a convenience.
 - No product variants, no CSV import, no multi-language.
 
 ---

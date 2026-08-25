@@ -141,28 +141,15 @@ the line on the product page.
 
 ### Price
 
-- **Regular price** — **optional**. Leave it blank and the item shows
-  "Price on request" instead of a figure. Every product currently in the
-  catalogue is like this.
-- **Sale price** — leave blank if the item is not on sale. When filled in, the
-  catalogue shows the sale price with the regular one struck through and a
-  "Sale" badge on the card. It must be lower than the regular price, and it
-  needs a regular price to be reduced from — a sale price on its own would
-  strike a line through nothing.
+There is no price box on the product form, and that is deliberate.
 
-A blank price is a real state, not a gap. For export lines the number usually
-depends on volume and incoterm, so:
+The catalogue shows **no prices at all**. Every product displays "Price on
+request", and a buyer asks for a quote by shortlisting items and sending them
+over. Your own figures live somewhere else entirely — see
+**[The internal price sheet](#the-internal-price-sheet)** below.
 
-- The card and the product page say "Price on request". You can reword that
-  under **Settings → Label for unpriced items** — "Contact us for a quote", or
-  whatever suits.
-- A price range filter **skips** unpriced items rather than treating them as
-  free. Someone filtering $0–$100 does not get two hundred results.
-- "Price low to high" puts the unpriced ones at the end, not the front.
-- The price filter box does not appear at all while nothing is priced, because
-  a range that can only return nothing is just a trap.
-
-Price a handful of items and the filter appears on its own.
+You can reword the label under **Settings → Label shown instead of a price** —
+"Contact us for a quote", or whatever suits.
 
 ### Availability
 
@@ -208,21 +195,141 @@ files. There is no undo, so take a database backup before a big clear-out.
 
 ---
 
+## The internal price sheet
+
+**Admin → Price sheet.** This is the only screen in the whole site that holds
+a figure, and nothing on the public catalogue reads it. That is not a setting
+you could switch on by accident — the buyer-facing pages do not look at the
+pricing table at all.
+
+It is one big editable grid, one row per product, grouped by category:
+
+| Column | What goes in it |
+|---|---|
+| **Price** | The number. Leave blank for anything not priced yet. |
+| **Cur** | Three-letter code — CAD, USD, THB. Defaults to whatever is set under Settings. |
+| **Per** | What the price is *per*: per kg, per 10kg carton, per 20ft FCL. |
+| **MOQ** | Minimum order, in your own words — "1 x 20ft", "500 cartons". |
+| **Incoterm** | FOB, CIF, EXW and so on. Typed in lower case, saved upper. |
+| **Valid until** | When the quote expires. Rows past their date turn red. |
+| **Supplier** | Who quoted it. Also searchable. |
+| **Notes** | Anything else — "subject to crop", "add 3% for organic cert". |
+
+Type into as many rows as you like and press **Save price sheet** once at the
+bottom. Only the rows on screen are saved, so filtering to one category and
+saving leaves every other product untouched.
+
+Two things it will not let you do:
+
+- **A price with no unit is refused.** "4.85" on an export line is ambiguous —
+  per kilo and per carton are wildly different numbers, and the sheet is no
+  use six months later if nobody can tell which was meant.
+- **Clearing every box on a row deletes that row's pricing** rather than
+  storing a set of blanks, so "not priced" is one state in the data instead of
+  two that behave differently.
+
+### Finding what still needs doing
+
+- **Priced → Not priced yet** lists everything with no figure. The dashboard
+  tile "No internal price" links straight here.
+- **Expiring or expired** catches quotes at or past their valid-until date.
+- The header line says how many of the total are priced.
+
+### Getting a sheet out
+
+**Export CSV** downloads whatever the current filter is showing — so you can
+export one category, one origin, or the lot. It opens directly in Excel,
+Numbers or Google Sheets.
+
+The file is an internal working document. It carries your costs, suppliers and
+margins; it is not something to forward to a buyer as it stands.
+
+---
+
+## Enquiries
+
+**Admin → Enquiries.** When a buyer shortlists items on the catalogue and
+sends them, the enquiry lands here with a reference like `DS-2608-0042`.
+
+Each one shows what they asked for, how much of it, any notes they added, and
+their contact and shipping details — destination port, preferred incoterm,
+country. Alongside every line it shows **your internal price** for that
+product, if you have entered one, so you can see immediately what is quotable
+and what still needs a figure.
+
+Two buttons at the top:
+
+- **Open in price sheet** — jumps to the price sheet filtered to exactly the
+  products on this enquiry. Fill in the missing ones and save.
+- **Export quote sheet** — a CSV of the enquiry with your internal terms
+  beside each line, for building the quote.
+
+Set the **status** as you work — New, In progress, Quoted, Closed — and keep
+notes in the internal notes box. Neither is ever shown to the buyer. The count
+of new enquiries appears next to "Enquiries" in the sidebar and on the
+dashboard.
+
+### The notification email
+
+Under **Settings → Enquiry notification email** you can put an address to be
+emailed a copy of each enquiry. It is optional and it is a convenience, not
+the record: enquiries are always saved here whether the email works or not.
+Whether it arrives depends on the host having working outbound mail, which is
+worth testing once after going live.
+
+---
+
+## Uploading photographs in bulk
+
+**Admin → Products → Bulk image upload.** With nearly two hundred products,
+attaching photographs one form at a time is a long evening. This takes a whole
+folder at once and matches each file to a product by its filename.
+
+It tries three things, in order:
+
+1. the product's **SKU**, exactly
+2. the product's **web address slug** (`fresh-young-coconut`)
+3. the **product name** with spaces, punctuation and capitals ignored
+
+Case does not matter, and a trailing copy number is ignored, so
+`Dragon Fruit (2).jpg` and `dragon-fruit.JPG` both find the same product. The
+page lists a sample of products still without a photograph and the exact
+filename to use for each.
+
+Every file you upload is accounted for in the report afterwards — attached,
+skipped, or failed, each with the reason. Nothing is dropped silently.
+
+**Replace is off by default.** A file matching a product that already has an
+image is skipped rather than overwriting it, so you can run this repeatedly to
+fill gaps without disturbing photographs you have already sorted. Tick
+**Replace images on products that already have one** when you do want to
+overwrite — that removes the old images for those products.
+
+If the page times out on a very large batch, send them in smaller groups; most
+hosts cap how much can be uploaded in one request.
+
+
+---
+
 ## Settings
 
 **Settings** changes site-wide values without touching any code:
 
-- **Site name** and **tagline** — header, footer and page titles. Currently
-  "Disruptive Sourcing" — change it here if the catalogue should carry MIKN
-  Consulting instead; nothing else needs touching.
-- **Currency code and symbol** — the symbol goes in front of every price
+- **Site name** and **tagline** — header, footer and page titles, currently
+  "Disruptive Sourcing".
+- **Default currency code and symbol** — used on new internal price sheet
+  rows. Neither ever appears on the public site, because no public page prints
+  a figure.
 - **Products per page** — 4 to 60
-- **Label for unpriced items** — what appears where a price would be. Defaults
-  to "Price on request".
+- **Label shown instead of a price** — appears on every product. Defaults to
+  "Price on request".
 - **Contact email and phone** — optional. Fill either in and product pages
-  gain a line telling visitors how to enquire. Leave both blank and the line
-  disappears. The phone is currently set to the number in your signature —
-  clear the field if you would rather it did not appear publicly.
+  gain a line telling visitors how to reach you directly. Leave both blank and
+  the line disappears. The phone is currently set to the number in your
+  signature — clear the field if you would rather it did not appear publicly.
+- **Enquiry notification email** — optional; see
+  **[Enquiries](#enquiries)** above.
+- **Shortlist page introduction** — the line above the enquiry form.
 
 ### The logo
 
@@ -265,16 +372,29 @@ the lockout clears itself.
 ## What visitors see
 
 - **Catalogue** — grid of products, with a sidebar to filter by type, origin,
-  availability, brand and price range, plus sorting. On a phone the sidebar
-  collapses into a **Filters** button.
+  availability and brand, plus sorting. On a phone the sidebar collapses into
+  a **Filters** button. There is no price filter, because there are no prices.
 - **Search** — matches names, SKUs, brands, descriptions, origin names *and*
   specification values.
-- **Product page** — image gallery, price, availability, origin, description,
-  the specification table grouped into sections, and other items from the same
+- **Product page** — image gallery, availability, origin, description, the
+  specification table grouped into sections, and other items from the same
   category underneath.
+- **Shortlist** — every product card and product page has an *Add to
+  shortlist* button. The shortlist is kept in the visitor's own browser, so
+  they can build one over several visits with no account and nothing is
+  recorded on your side until they send it. The header shows a running count.
+- **Enquiry** — on the shortlist page they add the volume they want and any
+  notes per item, fill in their contact and destination details, and send. It
+  arrives under **Admin → Enquiries** and they get a reference number.
 
 Everything reflows for phones and tablets; there is no separate mobile site to
 maintain.
+
+One detail worth knowing: the shortlist stores only product *ids*, and the
+names, photographs and availability are read back from the database each time
+the page loads. A shortlist built weeks ago therefore shows current
+information, and anything you have withdrawn from the catalogue drops off it
+by itself.
 
 ---
 

@@ -350,9 +350,8 @@ p  { margin: 0 0 1em; }
   font-size: .64rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
   padding: .18rem .4rem; border-radius: 2px; color: #fff;
 }
-.badge-sale { background: var(--red); }
 .badge-featured { background: var(--red); }
-/* Origin sits opposite the sale/featured flag so the two never collide. */
+/* Origin sits opposite the featured flag so the two never collide. */
 .badge-origin {
   left: auto; right: .5rem;
   background: rgba(14,14,14,.82); color: var(--white);
@@ -381,24 +380,15 @@ p  { margin: 0 0 1em; }
   gap: .5rem; flex-wrap: wrap;
 }
 
-.price { margin: 0; }
-.price-now {
-  font-family: var(--mono); font-weight: 500; font-size: 1rem;
-  font-variant-numeric: tabular-nums; color: var(--white);
+/* "Price on request" is a label, not a figure, so it takes the uppercase
+   micro-label treatment rather than the tabular monospace that a number would
+   get. No price ever appears on a buyer-facing page - the catalogue does not
+   read the pricing table at all. */
+.poa {
+  margin: 0; font-size: .78rem; font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--text-3);
 }
-.price-was { color: var(--text-3); text-decoration: line-through; font-size: .82rem; margin-left: .3rem; }
-/* "Price on request" is a label, not a figure, so it does not take the
-   tabular monospace treatment the real prices get. */
-.price-poa {
-  font-size: .82rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
-  color: var(--text-2);
-}
-.price-lg .price-now { font-size: 1.7rem; }
-.price-lg .price-poa { font-size: 1rem; color: var(--white); }
-.save {
-  display: inline-block; margin-left: .5rem; font-size: .76rem; font-weight: 700;
-  color: var(--red-hi); background: var(--red-wash); padding: .1rem .45rem; border-radius: 2px;
-}
+.poa-lg { font-size: .95rem; color: var(--text-2); margin-bottom: .6rem; }
 
 .stock { margin: 0; font-size: .8rem; display: inline-flex; align-items: center; gap: .35rem; }
 .stock .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex: 0 0 auto; }
@@ -525,11 +515,9 @@ p  { margin: 0 0 1em; }
   .card-title { font-size: .92rem; }
   .card-cat { font-size: .64rem; }
   .card-desc { font-size: .8rem; }
-  /* Always stack price over availability on a phone. Letting them sit side by
-     side means a card with a struck-through sale price wraps and a card
-     without one does not, and the two columns stop lining up. */
+  /* Availability over the on-request label on a phone: side by side, the two
+     wrap at different points across a row of cards and stop lining up. */
   .card-foot { flex-direction: column; align-items: flex-start; gap: .15rem; }
-  .price-now { font-size: .95rem; }
   .stock { font-size: .74rem; }
 }
 
@@ -573,3 +561,160 @@ p  { margin: 0 0 1em; }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
 }
+
+/* ===========================================================================
+   Shortlist
+   The buyer-facing half of "browse, shortlist, ask for a quote".
+   =========================================================================== */
+
+/* Header link. flex: 0 0 auto keeps it from being squeezed by the search box,
+   and the wordmark's own min-width: 0 lets the logo shrink instead. */
+.shortlist-link {
+  flex: 0 0 auto; display: inline-flex; align-items: center; gap: .4rem;
+  padding: .42rem .7rem; border: 1px solid var(--carbon); border-radius: var(--radius);
+  color: var(--text-2); font-size: .82rem; font-weight: 600;
+  letter-spacing: .04em; text-transform: uppercase; text-decoration: none;
+  background: var(--surface-2); position: relative;
+}
+.shortlist-link:hover { color: var(--white); border-color: var(--steel); text-decoration: none; }
+.shortlist-count {
+  min-width: 1.15rem; height: 1.15rem; padding: 0 .28rem;
+  display: inline-flex; align-items: center; justify-content: center;
+  /* White on Performance Red: 5.88:1, measured. Red as a fill, never as text. */
+  background: var(--red); color: #fff; border-radius: 999px;
+  font-size: .7rem; font-weight: 700; font-family: var(--mono);
+}
+
+/* Card button. Sits below the card foot as a full-width strip so a row of
+   cards has its buttons on one line regardless of title length. */
+.btn-shortlist {
+  margin-top: .7rem; width: 100%; padding: .45rem .6rem;
+  background: transparent; border: 1px solid var(--carbon); border-radius: var(--radius);
+  color: var(--text-2); font: inherit; font-size: .76rem; font-weight: 700;
+  letter-spacing: .06em; text-transform: uppercase; cursor: pointer;
+}
+.btn-shortlist:hover { border-color: var(--steel); color: var(--white); }
+.btn-shortlist.is-on { background: var(--red-wash); border-color: var(--red); color: var(--red-hi); }
+
+/* Only one of the two labels is ever shown. Both live in the markup so the
+   button never has to be relabelled from script for the state to be readable. */
+.btn-shortlist .sl-on,
+.btn-shortlist-lg .sl-on { display: none; }
+.btn-shortlist.is-on .sl-add,
+.btn-shortlist-lg.is-on .sl-add { display: none; }
+.btn-shortlist.is-on .sl-on,
+.btn-shortlist-lg.is-on .sl-on { display: inline; }
+
+.btn-shortlist-lg { margin: .3rem 0 .5rem; }
+.btn-shortlist-lg.is-on {
+  background: var(--surface-3); border-color: var(--red); color: var(--red-hi);
+}
+.buy-note { font-size: .82rem; color: var(--ink-faint); margin: 0 0 .8rem; line-height: 1.5; }
+
+/* --- The shortlist page --------------------------------------------------- */
+.sl-section {
+  background: var(--surface); border: 1px solid var(--carbon);
+  border-radius: var(--radius); padding: 1.2rem; margin-bottom: 1.2rem;
+}
+.sl-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem;
+}
+.sl-head h2, .sl-section h2 { margin: 0 0 .2rem; font-size: 1.05rem; }
+.sl-section h2 { margin-bottom: 1rem; }
+
+.sl-list { list-style: none; margin: 0; padding: 0; }
+.sl-row {
+  display: grid; gap: .9rem; align-items: start;
+  grid-template-columns: 72px minmax(0, 1fr) minmax(0, 1.1fr) auto;
+  padding: .9rem 0; border-top: 1px solid var(--line-soft);
+}
+.sl-row:first-child { border-top: 0; padding-top: 0; }
+.sl-thumb {
+  width: 72px; height: 72px; object-fit: cover; border-radius: var(--radius);
+  background: var(--surface-2);
+}
+/* min-width: 0 on the grid child, or a long product name refuses to wrap and
+   pushes the whole row wider than the page. */
+.sl-main { min-width: 0; }
+.sl-cat {
+  margin: 0 0 .15rem; font-size: .68rem; font-weight: 700; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--ink-faint);
+}
+.sl-name { margin: 0 0 .3rem; font-weight: 600; line-height: 1.35; }
+.sl-name a { color: var(--white); }
+.sl-stock { font-size: .76rem; }
+
+.sl-fields { display: grid; gap: .5rem; min-width: 0; }
+.field-sm label {
+  display: block; font-size: .7rem; font-weight: 700; letter-spacing: .05em;
+  text-transform: uppercase; color: var(--ink-faint); margin-bottom: .2rem;
+}
+.sl-input {
+  width: 100%; padding: .4rem .5rem; background: var(--surface-2);
+  border: 1px solid var(--carbon); border-radius: var(--radius);
+  color: var(--white); font: inherit; font-size: .85rem;
+}
+.sl-input:focus { outline: 2px solid var(--red-hi); outline-offset: 1px; }
+
+.sl-remove {
+  background: none; border: 0; color: var(--ink-faint); cursor: pointer;
+  font-size: 1.4rem; line-height: 1; padding: .2rem .4rem;
+}
+.sl-remove:hover { color: var(--red-hi); }
+.sl-error { color: var(--red-hi); padding: 1rem 0; }
+
+.sl-submit { margin-top: 1.2rem; }
+.sl-submit .filter-note { margin-top: .7rem; max-width: 46rem; }
+.btn-lg { padding: .7rem 1.6rem; font-size: .95rem; }
+
+/* Honeypot: off-screen rather than display:none, because some bots skip
+   anything that is not rendered at all. */
+.hp {
+  position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden;
+}
+
+.form-grid { display: grid; gap: .9rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.form-grid .field { min-width: 0; }
+.req { color: var(--red-hi); }
+
+.alert {
+  padding: .9rem 1.1rem; border-radius: var(--radius); margin-bottom: 1.2rem;
+  border: 1px solid var(--carbon); background: var(--surface-2);
+}
+.alert p { margin: 0 0 .4rem; }
+.alert ul { margin: 0; padding-left: 1.2rem; }
+.alert-error { border-color: var(--red); background: var(--red-wash); }
+
+.empty-state {
+  background: var(--surface); border: 1px solid var(--carbon);
+  border-radius: var(--radius); padding: 3rem 1.5rem; text-align: center;
+}
+.empty-state h1, .empty-state h2 { margin-top: 0; }
+.empty-state p { max-width: 34rem; margin-left: auto; margin-right: auto; }
+.sent-ref { font-family: var(--mono); font-size: 1.1rem; }
+
+.page-head { margin-bottom: 1.4rem; }
+.page-head h1 { margin-bottom: .3rem; }
+.page-sub { color: var(--ink-soft); margin: 0; max-width: 46rem; }
+
+@media (max-width: 720px) {
+  /* The quantity and notes fields drop under the product rather than beside
+     it - two text inputs in a 150px column are unusable on a phone. */
+  .sl-row { grid-template-columns: 56px minmax(0, 1fr) auto; }
+  .sl-thumb { width: 56px; height: 56px; }
+  .sl-fields { grid-column: 1 / -1; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .form-grid { grid-template-columns: 1fr; }
+  /* The word would push the header past the viewport; the icon and count
+     carry the meaning on their own. */
+  .shortlist-text { display: none; }
+  .shortlist-link { padding: .42rem .5rem; }
+}
+
+@media (max-width: 460px) {
+  .sl-fields { grid-template-columns: 1fr; }
+}
+
+/* Vertical breathing room for the two standalone pages, which have no sidebar
+   or gallery to set their own rhythm. */
+.shortlist-page, .sent-state { margin-top: 1.6rem; margin-bottom: 2.5rem; }

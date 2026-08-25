@@ -2,13 +2,18 @@
 $labels = [
     'site_name'       => ['Site name', 'Shown in the header, the footer and page titles.'],
     'site_tagline'    => ['Tagline', 'A short line under the site name.'],
-    'currency_code'   => ['Currency code', 'e.g. CAD, USD, EUR. Printed in the footer.'],
-    'currency_symbol' => ['Currency symbol', 'Put in front of every price, e.g. $ or £.'],
+    'currency_code'   => ['Default currency code',
+        'e.g. CAD, USD, EUR. Used as the default on new internal price sheet rows. It is never shown on the public site.'],
+    'currency_symbol' => ['Currency symbol', 'Used on internal figures, e.g. $ or £.'],
     'per_page'        => ['Products per page', 'Between 4 and 60.'],
-    'price_request_label' => ['Label for unpriced items',
-        'What appears where a price would be when a product has none, e.g. "Price on request" or "Contact for a quote".'],
+    'price_request_label' => ['Label shown instead of a price',
+        'The catalogue shows no prices at all, so this appears on every product, e.g. "Price on request" or "Contact for a quote".'],
     'contact_email'   => ['Contact email', 'Optional. Shown on product pages so people can enquire.'],
     'contact_phone'   => ['Contact phone', 'Optional. Leave blank to keep it off the public site.'],
+    'enquiry_notify_email' => ['Enquiry notification email',
+        'Optional. A copy of every enquiry is emailed here. Enquiries are always saved to the admin panel whether this is set or not.'],
+    'enquiry_intro'   => ['Shortlist page introduction',
+        'The line at the top of the shortlist page, above the enquiry form.'],
 ];
 ?>
 

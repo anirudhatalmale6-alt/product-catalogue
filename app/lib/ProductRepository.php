@@ -8,18 +8,15 @@ class ProductRepository
     /**
      * Columns the front-end is allowed to sort by, mapped to real SQL.
      *
-     * Both price sorts push unpriced items to the end rather than letting them
-     * lead a "price low to high" list. MySQL sorts NULL first on ASC, which
-     * would put every "price on request" row above the cheapest real price.
+     * There are no price sorts. The catalogue carries no pricing at all -
+     * see product_pricing in the schema and PricingRepository, which is
+     * admin-only and never joined from this class.
      */
     private const SORTS = [
         'newest'     => 'p.created_at DESC, p.id DESC',
         'name_asc'   => 'p.name ASC',
         'name_desc'  => 'p.name DESC',
-        'price_asc'  => 'COALESCE(p.sale_price, p.price) IS NULL ASC,
-                         COALESCE(p.sale_price, p.price) ASC, p.name ASC',
-        'price_desc' => 'COALESCE(p.sale_price, p.price) IS NULL ASC,
-                         COALESCE(p.sale_price, p.price) DESC, p.name ASC',
+        'origin'     => 'o.name IS NULL ASC, o.name ASC, p.name ASC',
         'featured'   => 'p.is_featured DESC, p.sort_order ASC, p.name ASC',
     ];
 
@@ -77,18 +74,6 @@ class ProductRepository
         if (!empty($f['brand'])) {
             $where[] = 'p.brand = ?';
             $params[] = $f['brand'];
-        }
-
-        // A price bound is a statement about priced items. Unpriced rows are
-        // excluded rather than treated as 0.00, which would sweep every
-        // "price on request" line into any filter with a minimum of zero.
-        if (isset($f['min_price']) && $f['min_price'] !== '' && is_numeric($f['min_price'])) {
-            $where[] = 'COALESCE(p.sale_price, p.price) >= ?';
-            $params[] = (float) $f['min_price'];
-        }
-        if (isset($f['max_price']) && $f['max_price'] !== '' && is_numeric($f['max_price'])) {
-            $where[] = 'COALESCE(p.sale_price, p.price) <= ?';
-            $params[] = (float) $f['max_price'];
         }
 
         return [$where ? 'WHERE ' . implode(' AND ', $where) : '', $params];
@@ -214,23 +199,6 @@ class ProductRepository
               ORDER BY brand"), 'brand');
     }
 
-    /**
-     * Lowest and highest live price, or null when nothing is priced at all.
-     * MIN/MAX already skip NULLs, so an all-unpriced catalogue returns null
-     * rather than a misleading 0.00 - 0.00 range in the filter placeholders.
-     */
-    public static function priceRange(): ?array
-    {
-        $row = Database::one(
-            'SELECT MIN(COALESCE(sale_price, price)) AS lo,
-                    MAX(COALESCE(sale_price, price)) AS hi
-               FROM products WHERE is_active = 1');
-        if (!$row || $row['lo'] === null) {
-            return null;
-        }
-        return [(float) $row['lo'], (float) $row['hi']];
-    }
-
     public static function findBySlug(string $slug, bool $publicOnly = true): ?array
     {
         $sql = 'SELECT p.*, c.name AS category_name, c.slug AS category_slug,
@@ -244,6 +212,47 @@ class ProductRepository
             $sql .= ' AND p.is_active = 1';
         }
         return Database::one($sql . ' LIMIT 1', [$slug]);
+    }
+
+    /**
+     * Live products for a list of ids, in the order the ids were given.
+     *
+     * The caller's order is preserved because a shortlist is in the order the
+     * buyer built it; letting SQL return them by id would silently reshuffle
+     * the list every time the page loaded.
+     *
+     * @param int[] $ids
+     */
+    public static function byIds(array $ids): array
+    {
+        $ids = array_values(array_filter(array_map('intval', $ids)));
+        if (!$ids) {
+            return [];
+        }
+        $ph   = implode(',', array_fill(0, count($ids), '?'));
+        $rows = Database::all(
+            "SELECT p.*, c.name AS category_name, o.name AS origin_name,
+                    (SELECT file_path FROM product_images i
+                      WHERE i.product_id = p.id
+                      ORDER BY i.is_primary DESC, i.sort_order ASC, i.id ASC
+                      LIMIT 1) AS primary_image
+               FROM products p
+               LEFT JOIN categories c ON c.id = p.category_id
+               LEFT JOIN origins o    ON o.id = p.origin_id
+              WHERE p.id IN ({$ph}) AND p.is_active = 1", $ids);
+
+        $byId = [];
+        foreach ($rows as $r) {
+            $byId[(int) $r['id']] = $r;
+        }
+
+        $out = [];
+        foreach ($ids as $id) {
+            if (isset($byId[$id])) {
+                $out[] = $byId[$id];
+            }
+        }
+        return $out;
     }
 
     public static function find(int $id): ?array
@@ -334,13 +343,6 @@ class ProductRepository
             'slug'              => $data['slug'],
             'short_description' => $data['short_description'],
             'description'       => $data['description'],
-            // Blank stays NULL rather than becoming 0.00 - an empty price box
-            // means "on request", and casting it to a float would silently
-            // publish every one of those items as free.
-            'price'             => ($data['price'] === '' || $data['price'] === null)
-                                    ? null : (float) $data['price'],
-            'sale_price'        => ($data['sale_price'] === '' || $data['sale_price'] === null)
-                                    ? null : (float) $data['sale_price'],
             'stock_status'      => $data['stock_status'],
             'stock_qty'         => ($data['stock_qty'] === '' || $data['stock_qty'] === null)
                                     ? null : (int) $data['stock_qty'],

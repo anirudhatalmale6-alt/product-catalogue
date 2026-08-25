@@ -82,17 +82,7 @@ $showWeightRow = $product['weight_grams'] !== null && !$hasWeightSpec;
     <?php endif; ?>
 
     <div class="buy-box">
-      <p class="price price-lg">
-        <?php if (price_on_request($product)): ?>
-          <span class="price-poa"><?= e(price_request_label()) ?></span>
-        <?php elseif ($product['sale_price'] !== null): ?>
-          <span class="price-now"><?= money($product['sale_price']) ?></span>
-          <span class="price-was"><?= money($product['price']) ?></span>
-          <span class="save">Save <?= money((float) $product['price'] - (float) $product['sale_price']) ?></span>
-        <?php else: ?>
-          <span class="price-now"><?= money($product['price']) ?></span>
-        <?php endif; ?>
-      </p>
+      <p class="poa poa-lg"><?= e(price_request_label()) ?></p>
       <p class="stock stock-<?= stock_class($product['stock_status']) ?> stock-lg">
         <span class="dot" aria-hidden="true"></span>
         <?= e(stock_label($product['stock_status'])) ?>
@@ -100,12 +90,22 @@ $showWeightRow = $product['weight_grams'] !== null && !$hasWeightSpec;
           <span class="muted">(<?= (int) $product['stock_qty'] ?> available)</span>
         <?php endif; ?>
       </p>
+
+      <button type="button" class="btn btn-primary btn-shortlist-lg"
+              data-shortlist="<?= (int) $product['id'] ?>" aria-pressed="false">
+        <span class="sl-add">Add to shortlist</span>
+        <span class="sl-on">On your shortlist</span>
+      </button>
+      <p class="buy-note">
+        Shortlist the items you are interested in, then send them over in one
+        enquiry and we will come back with pricing and lead times.
+        <a href="<?= url('shortlist') ?>">View your shortlist</a>
+      </p>
+
       <?php if (setting('contact_email') || setting('contact_phone')): ?>
         <?php // The separator only belongs between two values - with just one
               // of the pair filled in, printing it leaves a dangling dot. ?>
-        <p class="enquire"><?= price_on_request($product)
-              ? 'For a quote on this item, including volumes and incoterms, contact'
-              : 'To order or ask about this item, contact' ?>
+        <p class="enquire">Or contact us directly:
           <?php if (setting('contact_email')): ?><strong><?= e(setting('contact_email')) ?></strong><?php endif; ?>
           <?php if (setting('contact_email') && setting('contact_phone')): ?> &middot; <?php endif; ?>
           <?php if (setting('contact_phone')): ?><strong><?= e(setting('contact_phone')) ?></strong><?php endif; ?>

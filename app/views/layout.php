@@ -6,6 +6,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title><?= e($title ?? '') ?> &middot; <?= e(setting('site_name', 'Catalogue')) ?></title>
 <meta name="description" content="<?= e($metaDescription ?? setting('site_tagline', '')) ?>">
+<?php if (!empty($noindex)): ?>
+<?php // A shortlist and a sent-confirmation are personal working pages, not
+      // catalogue content. Keeping them out of the index also keeps them out
+      // of the "why is this thin page ranking" pile later on. ?>
+<meta name="robots" content="noindex, nofollow">
+<?php endif; ?>
 <meta name="theme-color" content="#0E0E0E">
 <link rel="stylesheet" href="<?= asset('css/site.css') ?>?v=<?= @filemtime(PUBLIC_DIR . '/assets/css/site.css') ?>">
 <link rel="icon" href="<?= asset('img/favicon.png') ?>" type="image/png">
@@ -34,6 +40,15 @@
         <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zm5 12 4 4"/></svg>
       </button>
     </form>
+
+    <a class="shortlist-link" href="<?= url('shortlist') ?>">
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M4 6h13l-1.2 7H6.4zM6.4 13 4 3H2m5 16.5a1 1 0 1 0 2 0 1 1 0 0 0-2 0m6 0a1 1 0 1 0 2 0 1 1 0 0 0-2 0"/></svg>
+      <span class="shortlist-text">Shortlist</span>
+      <?php // Starts hidden and is only revealed once site.js has read the
+            // stored list. Rendering a "0" server-side would flash a wrong
+            // number on every page for anyone with items already saved. ?>
+      <span class="shortlist-count" data-shortlist-count hidden>0</span>
+    </a>
 
     <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav">
       <span></span><span></span><span></span>
@@ -99,17 +114,19 @@
     </div>
   </div>
   <div class="wrap footer-legal">
-    <?php // Only claim a currency when something is actually priced in it. ?>
+    <?php // No currency is named because no figure is ever shown here. Pricing
+          // depends on volume, packing and incoterm and is quoted per enquiry. ?>
     <small>&copy; <?= date('Y') ?> <?= e(setting('site_name', 'Catalogue')) ?>.
-      <?php if (ProductRepository::priceRange() !== null): ?>
-        Prices in <?= e(setting('currency_code', '')) ?>, exclusive of freight and duty.
-      <?php else: ?>
-        All items quoted on request.
-      <?php endif; ?>
+      All items quoted on request &mdash; pricing depends on volume, packing
+      and incoterm.
     </small>
   </div>
 </footer>
 
+<?php // The JSON endpoint the shortlist page reads. Passed in from PHP rather
+      // than hard-coded in the script so it stays correct whether the site is
+      // running with mod_rewrite on or on the index.php?r= fallback. ?>
+<script>window.DS_SHORTLIST_URL = <?= json_encode(url('shortlist-items')) ?>;</script>
 <script src="<?= asset('js/site.js') ?>?v=<?= @filemtime(PUBLIC_DIR . '/assets/js/site.js') ?>" defer></script>
 </body>
 </html>

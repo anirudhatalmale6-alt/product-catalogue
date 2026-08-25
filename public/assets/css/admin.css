@@ -120,7 +120,19 @@ p { margin: 0 0 .8rem; }
 .adm-side .ico { color: var(--ink-faint); font-size: .8rem; width: 1rem; }
 .adm-side a.is-current .ico { color: var(--accent); }
 
-.adm-main { padding: 1.2rem 1rem 3rem; max-width: 1280px; margin-inline: auto; }
+/* Two things here are load-bearing once this column holds something wide,
+   like the price sheet's table.
+   min-width: 0 - a grid item defaults to min-width: auto and will not shrink
+     below its content.
+   width: 100%  - "margin-inline: auto" cancels the item's default stretch, so
+     without an explicit width it sizes to its widest CONTENT and only then
+     gets capped by max-width. That pushed this column past its grid track and
+     scrolled the whole admin page sideways, cutting off the filter bar,
+     instead of letting the table scroll inside its own wrapper. */
+.adm-main {
+  padding: 1.2rem 1rem 3rem; width: 100%; max-width: 1280px;
+  margin-inline: auto; min-width: 0;
+}
 
 /* --- Page head ---------------------------------------------------------- */
 
@@ -380,4 +392,141 @@ a.stat:hover { text-decoration: none; border-color: var(--accent); }
 
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
+}
+
+/* ===========================================================================
+   Internal price sheet, enquiries and bulk upload
+   =========================================================================== */
+
+/* A standing marker on the navigation entry, so it is obvious at a glance
+   which screen carries figures that must not be shown to a buyer. */
+.adm-tag {
+  margin-left: .4rem; font-size: .6rem; font-weight: 700; letter-spacing: .08em;
+  text-transform: uppercase; padding: .1rem .3rem; border-radius: 2px;
+  background: rgba(255, 255, 255, .12); color: #cfd4d9;
+}
+.adm-badge {
+  margin-left: .4rem; min-width: 1.1rem; padding: 0 .3rem;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--accent); color: #fff; border-radius: 999px;
+  font-size: .68rem; font-weight: 700;
+}
+
+.notice {
+  padding: .8rem 1rem; border-radius: 3px; margin-bottom: 1.2rem;
+  border: 1px solid var(--line); background: var(--surface); font-size: .9rem;
+}
+.notice-internal { border-left: 3px solid var(--accent); background: var(--accent-wash); }
+
+.stat-alert .stat-num { color: var(--accent); }
+
+/* --- The sheet ------------------------------------------------------------ */
+/* A wide table on a narrow screen scrolls inside its own box; the page itself
+   must never gain a horizontal scrollbar. */
+.sheet-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 3px; }
+/* Wide enough that "per 10kg carton" and a real supplier name are readable
+   rather than clipped to "per" and "MAPL Tha". The wrapper scrolls, so the
+   page itself never does. */
+.sheet { width: 100%; border-collapse: collapse; font-size: .85rem; min-width: 82rem; }
+.sheet th, .sheet td { padding: .35rem .4rem; text-align: left; vertical-align: middle; }
+.sheet thead th {
+  position: sticky; top: 0; z-index: 2;
+  background: var(--surface); border-bottom: 2px solid var(--line);
+  font-size: .68rem; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--ink-soft); font-weight: 700; white-space: nowrap;
+}
+.sheet tbody tr { border-bottom: 1px solid var(--line-soft); }
+.sheet tbody tr:hover { background: #fafafa; }
+.sheet-group th {
+  background: #f3f4f5; font-size: .72rem; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--ink-soft); padding: .45rem .5rem;
+  position: sticky; top: 1.85rem; z-index: 1;
+}
+.sheet .col-name { min-width: 15rem; font-weight: 500; }
+.sheet-meta {
+  display: block; font-size: .72rem; color: var(--ink-faint); font-weight: 400;
+}
+.sheet input {
+  width: 100%; padding: .3rem .35rem; border: 1px solid transparent;
+  border-radius: 2px; background: transparent; font: inherit; font-size: .85rem;
+  color: var(--ink);
+}
+/* Transparent until touched keeps 197 rows readable as a document rather than
+   a wall of boxes; the border appears on hover and focus so it is still
+   obvious that every cell is editable. */
+/* A placeholder must not read as a value. At --ink-faint the hints looked
+   like every row was already FOB with a 1 x 20ft minimum. */
+.sheet input::placeholder { color: #b9bcbf; opacity: 1; }
+.sheet input:hover { border-color: var(--line); background: #fff; }
+.sheet input:focus {
+  border-color: var(--accent); background: #fff;
+  outline: 2px solid var(--accent-wash); outline-offset: 0;
+}
+.sheet .in-num, .sheet .in-cur, .sheet .in-date {
+  font-family: var(--mono); font-variant-numeric: tabular-nums;
+}
+.sheet .col-num  { width: 7rem; }
+.sheet .col-cur  { width: 5.5rem; }
+.sheet .col-date { width: 10rem; }
+.sheet .col-unit { width: 11rem; }
+.sheet .col-moq  { width: 9rem; }
+.sheet .col-supp { width: 12rem; }
+.sheet .in-cur { text-transform: uppercase; }
+.sheet tr.is-expired td:first-of-type input { color: var(--bad); font-weight: 600; }
+.sheet tr.is-hidden-product .col-name { opacity: .6; }
+
+.sheet-save {
+  position: sticky; bottom: 0; margin-top: 0;
+  display: flex; align-items: center; gap: 1rem;
+  padding: .8rem 1rem; background: var(--surface);
+  border: 1px solid var(--line); border-top: 2px solid var(--accent);
+  border-radius: 0 0 3px 3px;
+}
+
+.field-check { display: flex; align-items: flex-end; }
+.field-check label { display: flex; align-items: center; gap: .4rem; font-weight: 400; }
+.field-actions { display: flex; align-items: flex-end; gap: .5rem; }
+
+/* --- Enquiries ------------------------------------------------------------ */
+.tag-new         { background: var(--accent-wash); color: var(--accent); }
+.tag-in_progress { background: var(--warn-wash);   color: var(--warn); }
+.tag-quoted      { background: var(--ok-wash);     color: var(--ok); }
+.tag-closed      { background: var(--paper);       color: var(--ink-faint); }
+
+.adm-table tr.is-new td:first-child { border-left: 3px solid var(--accent); }
+.table-wrap { overflow-x: auto; }
+.adm-table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+.adm-table th, .adm-table td {
+  padding: .55rem .6rem; text-align: left; border-bottom: 1px solid var(--line-soft);
+  vertical-align: top;
+}
+.adm-table thead th {
+  font-size: .68rem; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--ink-soft); border-bottom: 2px solid var(--line); white-space: nowrap;
+}
+
+.adm-col-main { min-width: 0; }
+.adm-col-side { min-width: 0; }
+
+.kv { margin: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: .35rem .8rem; }
+.kv dt { font-size: .72rem; letter-spacing: .05em; text-transform: uppercase; color: var(--ink-faint); }
+.kv dd { margin: 0; word-break: break-word; }
+
+.panel-danger { border-color: var(--bad); }
+.btn-danger { background: var(--bad); border-color: var(--bad); color: #fff; }
+.btn-danger:hover { background: #922e26; border-color: #922e26; color: #fff; }
+
+.pager { display: flex; gap: .3rem; margin-top: 1rem; flex-wrap: wrap; }
+.pager a {
+  padding: .35rem .6rem; border: 1px solid var(--line); border-radius: 2px;
+  color: var(--ink-soft);
+}
+.pager a.is-current { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+.hint { font-size: .8rem; color: var(--ink-faint); margin: .3rem 0 0; }
+
+@media (max-width: 900px) {
+  /* The sticky header row is what makes a long sheet usable, but it eats a
+     third of a short viewport - drop it rather than the columns. */
+  .sheet thead th, .sheet-group th { position: static; }
 }

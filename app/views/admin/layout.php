@@ -34,6 +34,15 @@
       <span class="ico" aria-hidden="true">&#9632;</span> Dashboard</a>
     <a href="<?= url('admin/products') ?>" class="<?= str_starts_with($r, 'admin/products') ? 'is-current' : '' ?>">
       <span class="ico" aria-hidden="true">&#9635;</span> Products</a>
+    <?php // Flagged as internal in the navigation itself, so nobody has to
+          // remember which screens are safe to show on a shared screen. ?>
+    <a href="<?= url('admin/pricing') ?>" class="<?= str_starts_with($r, 'admin/pricing') ? 'is-current' : '' ?>">
+      <span class="ico" aria-hidden="true">&#9878;</span> Price sheet
+      <span class="adm-tag">internal</span></a>
+    <?php $newEnquiries = EnquiryRepository::countNew(); ?>
+    <a href="<?= url('admin/enquiries') ?>" class="<?= str_starts_with($r, 'admin/enquiries') ? 'is-current' : '' ?>">
+      <span class="ico" aria-hidden="true">&#9993;</span> Enquiries
+      <?php if ($newEnquiries): ?><span class="adm-badge"><?= $newEnquiries ?></span><?php endif; ?></a>
     <a href="<?= url('admin/categories') ?>" class="<?= str_starts_with($r, 'admin/categories') ? 'is-current' : '' ?>">
       <span class="ico" aria-hidden="true">&#9636;</span> Categories</a>
     <a href="<?= url('admin/origins') ?>" class="<?= str_starts_with($r, 'admin/origins') ? 'is-current' : '' ?>">

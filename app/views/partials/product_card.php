@@ -3,9 +3,7 @@
   <a class="card-media" href="<?= url('product/' . $p['slug']) ?>">
     <img src="<?= e(upload_url($p['primary_image'] ?? null)) ?>"
          alt="<?= e($p['name']) ?>" loading="lazy" width="500" height="500">
-    <?php if ($p['sale_price'] !== null): ?>
-      <span class="badge badge-sale">Sale</span>
-    <?php elseif (!empty($p['is_featured'])): ?>
+    <?php if (!empty($p['is_featured'])): ?>
       <span class="badge badge-featured">Featured</span>
     <?php endif; ?>
     <?php if (!empty($p['origin_name'])): ?>
@@ -26,19 +24,21 @@
       <p class="card-desc"><?= e($p['short_description'] ?? '') ?></p>
     </div>
     <div class="card-foot">
-      <p class="price">
-        <?php if (price_on_request($p)): ?>
-          <span class="price-poa"><?= e(price_request_label()) ?></span>
-        <?php elseif ($p['sale_price'] !== null): ?>
-          <span class="price-now"><?= money($p['sale_price']) ?></span>
-          <span class="price-was"><?= money($p['price']) ?></span>
-        <?php else: ?>
-          <span class="price-now"><?= money($p['price']) ?></span>
-        <?php endif; ?>
-      </p>
       <p class="stock stock-<?= stock_class($p['stock_status']) ?>">
         <span class="dot" aria-hidden="true"></span><?= e(stock_label($p['stock_status'])) ?>
       </p>
+      <?php // The label is rendered server-side rather than being added by
+            // JavaScript, so it is present for a buyer with scripting off and
+            // for anything reading the page without running scripts. ?>
+      <p class="poa"><?= e(price_request_label()) ?></p>
     </div>
+    <?php /* aria-pressed carries the on/off state; site.js flips it and the
+             label text together so a screen reader hears the change rather
+             than only seeing the colour move. */ ?>
+    <button type="button" class="btn-shortlist" data-shortlist="<?= (int) $p['id'] ?>"
+            aria-pressed="false">
+      <span class="sl-add">Add to shortlist</span>
+      <span class="sl-on">On your shortlist</span>
+    </button>
   </div>
 </article>
