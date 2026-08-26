@@ -7,7 +7,15 @@
  */
 class OriginRepository
 {
-    /** Active origins with a live product count, in display order. */
+    /**
+     * Active origins with a live product count, in display order.
+     *
+     * An origin nobody has used yet is left out of the bar: a country sitting
+     * there with a 0 beside it reads to a buyer as "you stock nothing from
+     * here", which is worse than not offering the filter at all. It stays in
+     * the admin menus either way, so adding the first product from a country
+     * brings it back on its own.
+     */
     public static function navigation(): array
     {
         return Database::all(
@@ -16,6 +24,7 @@ class OriginRepository
                       WHERE p.origin_id = o.id AND p.is_active = 1) AS product_count
                FROM origins o
               WHERE o.is_active = 1
+             HAVING product_count > 0
               ORDER BY o.sort_order ASC, o.name ASC');
     }
 

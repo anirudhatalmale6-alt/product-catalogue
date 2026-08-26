@@ -46,6 +46,13 @@ become "Uncategorised" until you file them somewhere else.
 **Origins → + New origin.** Name, an optional two-letter country code (not
 shown on the site — it is there for paperwork later), and a sort order.
 
+A new origin does not show up in the origin bar on the public site until at
+least one product actually carries it. A country sitting in the buyer's filter
+bar with a 0 beside it reads as "we stock nothing from here", which is worse
+than not offering the filter at all — so Canada, the United States, Mexico and
+Vietnam are set up and waiting, but hidden until you use them. Set one on a
+product and it appears on its own.
+
 Deleting an origin never deletes products either. They stay listed, with no
 origin set.
 
