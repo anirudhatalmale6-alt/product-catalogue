@@ -49,6 +49,29 @@ afterwards.
 
 The important decision is where the domain points.
 
+**On a subdomain, alongside a main site you are not touching:**
+
+This is the usual case when the main site is on a closed platform (Wix,
+Squarespace, Shopify) that cannot run PHP. The two live side by side: the
+platform keeps the apex domain, the catalogue gets a subdomain such as
+`catalogue.example.com`.
+
+In cPanel → **Domains** → *Create a domain*, enter the subdomain and set its
+document root. cPanel offers `public_html/catalogue` by default; point it at
+the project's `public/` folder instead (see below). Creating the subdomain here
+also writes the DNS record automatically **if the domain's nameservers are the
+host's**. If DNS is managed elsewhere — a registrar, Cloudflare, or the site
+platform itself — cPanel cannot write it, and the subdomain will not resolve
+until an `A` record for it is added there by hand, pointing at the hosting
+account's IP address (cPanel shows it under *Server Information*).
+
+Adding a subdomain does not affect the apex domain, `www`, or mail. It is
+purely additive, so it can be done while the main site is live.
+
+Then issue the certificate for the subdomain specifically — cPanel's *SSL/TLS
+Status* page, **Run AutoSSL**. A certificate covering `example.com` does not
+cover `catalogue.example.com`.
+
 **Preferred — point the domain at `public/`:**
 
 Upload the whole project somewhere *outside* the web root, e.g.
