@@ -195,6 +195,68 @@ sudo nginx -t && sudo systemctl reload nginx
 
 ---
 
+## C. When you only have FTP — a cPanel subaccount
+
+A cPanel *subaccount* (cPanel → **User Manager** → *Add User*) is the safe way
+to let someone deploy without handing over the main hosting login. It is worth
+knowing exactly what it can and cannot do, because the limit is cPanel's and no
+setting changes it.
+
+A subaccount gets **email, FTP and Web Disk**. That is the whole list. It
+**cannot** create a subdomain, create a database, open phpMyAdmin, or run
+AutoSSL. Those stay with the account owner.
+
+So the split is:
+
+**The account owner does three things**, once, from their own cPanel:
+
+1. **User Manager** → the user → *Edit* → switch **FTP** on, set its directory
+   to the account home (or `public_html`), set a password.
+2. **Domains** → *Create A New Domain* → the subdomain. Note the document root
+   it fills in and pass it on.
+3. **MySQL Database Wizard** → database, user, **All Privileges**. Pass on all
+   three values — on cPanel they are prefixed with the account name.
+
+**Everything else goes over FTP.** Upload the project, write `app/config.php`
+with the three database values, then fill the database from the browser using
+the one-time installer, because phpMyAdmin is not available:
+
+```
+tools/install_config.php        <- upload this, it holds the token
+tools/web_install.php           <- already in the project
+```
+
+`install_config.php` returns an array with `token` (any long random string),
+`admin_user`, `admin_pass` and optionally `admin_name`. Then:
+
+```
+https://catalogue.example.com/tools/web_install.php?token=XXXX&action=check
+https://catalogue.example.com/tools/web_install.php?token=XXXX&action=install
+```
+
+Run `check` first — it is read-only and reports the PHP version, the extensions,
+whether `public/uploads` is writable, whether the three hidden `.htaccess` files
+survived the upload, and whether the database credentials work.
+
+`install` runs `schema.sql`, then `catalogue_data.sql`, then creates the first
+admin login, then **counts the rows and compares them against what should be
+there** (8 categories, 5 origins, 197 products, 213 image rows). A silent
+half-import is the thing to be afraid of here, so read that table rather than
+just looking for the word "Finished".
+
+It refuses to run if `products`, `product_pricing` or `enquiries` already have
+rows, because `schema.sql` drops every table — `&force=1` overrides that, and
+should only ever be used on a database you are willing to lose.
+
+Without the token file present it returns a plain 404, so it cannot be poked at
+by anyone who finds the URL. On success it deletes `install_config.php` itself.
+**Delete `tools/web_install.php` by hand afterwards.**
+
+Finally, ask the account owner to run AutoSSL (**SSL/TLS Status**) once the
+subdomain is answering — not before, because the check has to reach the site.
+
+---
+
 ## PHP settings for uploads
 
 The application limits images to 6 MB (`uploads.max_bytes` in

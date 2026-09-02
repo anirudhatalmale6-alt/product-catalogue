@@ -1,6 +1,10 @@
 # Your live database credentials - never commit this.
 app/config.php
 
+# The one-time installer's own config - holds its token and the first admin
+# password in plain text. It is uploaded, used once, and deleted.
+tools/install_config.php
+
 # Images uploaded through the admin panel are NOT committed - they are your
 # data, not the application.
 #
