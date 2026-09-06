@@ -227,12 +227,31 @@ tools/web_install.php           <- already in the project
 ```
 
 `install_config.php` returns an array with `token` (any long random string),
-`admin_user`, `admin_pass` and optionally `admin_name`. Then:
+`admin_user`, `admin_pass` and optionally `admin_name`.
+
+**Where you put them matters.** If the document root is the project's `public/`
+folder — the layout recommended above — then `tools/` is *outside* the web root
+and `/tools/web_install.php` will not reach the installer at all. The request
+falls through to the router and you get the site's own "not found" page, which
+looks like a broken installer but is the security setting working correctly.
+
+Copy **both** files into `public/` for the duration of the install instead:
 
 ```
-https://catalogue.example.com/tools/web_install.php?token=XXXX&action=check
-https://catalogue.example.com/tools/web_install.php?token=XXXX&action=install
+public/web_install.php
+public/install_config.php
 ```
+
+The installer works out the project root from its own location (`dirname(__DIR__)`),
+so it finds `sql/` and `app/config.php` correctly from either place. Then:
+
+```
+https://catalogue.example.com/web_install.php?token=XXXX&action=check
+https://catalogue.example.com/web_install.php?token=XXXX&action=install
+```
+
+If instead you used the everything-in-`public_html` fallback, the files stay in
+`tools/` and the URLs keep the `/tools/` prefix.
 
 Run `check` first — it is read-only and reports the PHP version, the extensions,
 whether `public/uploads` is writable, whether the three hidden `.htaccess` files
@@ -250,7 +269,8 @@ should only ever be used on a database you are willing to lose.
 
 Without the token file present it returns a plain 404, so it cannot be poked at
 by anyone who finds the URL. On success it deletes `install_config.php` itself.
-**Delete `tools/web_install.php` by hand afterwards.**
+**Delete the copy of `web_install.php` you put in `public/` by hand afterwards**,
+along with any `install_config.php` still sitting in `tools/`.
 
 Finally, ask the account owner to run AutoSSL (**SSL/TLS Status**) once the
 subdomain is answering — not before, because the check has to reach the site.
