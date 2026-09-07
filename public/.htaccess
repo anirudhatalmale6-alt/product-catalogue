@@ -11,6 +11,20 @@
     # Uncomment and set if the site lives in a sub-folder and links misbehave.
     # RewriteBase /catalogue/
 
+    # --- Force HTTPS --------------------------------------------------------
+    # Uncomment these three lines once a certificate is working. They belong
+    # together with 'https_only' => true in app/config.php: that flag marks the
+    # admin session cookie "secure", so a visitor who arrives over plain http
+    # never sends it back. Without the redirect the admin login looks like it
+    # silently fails - you sign in and land back on the login page.
+    # Leave them commented while developing over http on localhost, or every
+    # request will bounce to an https address that is not listening.
+    # The acme-challenge exemption keeps the certificate's own renewal check
+    # reachable over http, which Let's Encrypt needs.
+    # RewriteCond %{REQUEST_URI} !^/\.well-known/acme-challenge/
+    # RewriteCond %{HTTPS} !=on
+    # RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+
     # Send everything that is not an existing file or directory to the router.
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d

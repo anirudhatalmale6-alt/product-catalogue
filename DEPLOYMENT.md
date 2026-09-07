@@ -72,6 +72,10 @@ Then issue the certificate for the subdomain specifically — cPanel's *SSL/TLS
 Status* page, **Run AutoSSL**. A certificate covering `example.com` does not
 cover `catalogue.example.com`.
 
+**If AutoSSL is missing**, see *SSL when AutoSSL is switched off* below. Some
+resellers — GoDaddy among them — disable the feature and sell certificates
+separately, so the button is simply not there.
+
 **Preferred — point the domain at `public/`:**
 
 Upload the whole project somewhere *outside* the web root, e.g.
@@ -274,6 +278,64 @@ along with any `install_config.php` still sitting in `tools/`.
 
 Finally, ask the account owner to run AutoSSL (**SSL/TLS Status**) once the
 subdomain is answering — not before, because the check has to reach the site.
+
+---
+
+## SSL when AutoSSL is switched off
+
+Some hosts disable cPanel's AutoSSL and sell certificates instead. The UAPI call
+returns `You do not have the feature "autossl"`, and the *SSL/TLS Status* page
+has no **Run AutoSSL** button.
+
+Do not be reassured by the domain appearing under *installed SSL hosts*. Shared
+hosts pre-install a **self-signed placeholder** for every vhost, which browsers
+reject. The give-away is that the subject and the issuer are the same name:
+
+```
+openssl s_client -connect catalogue.example.com:443 \
+    -servername catalogue.example.com </dev/null 2>/dev/null |
+    openssl x509 -noout -subject -issuer
+```
+
+If the account has shell access — or `shell_exec` from PHP, plus `crontab` —
+a free certificate that **renews itself** can be installed with acme.sh:
+
+```
+cd ~ && mkdir acmesrc && cd acmesrc
+curl -o acme.sh https://raw.githubusercontent.com/acmesh-official/acme.sh/master/acme.sh
+bash ./acme.sh --install --home ~/.acme.sh --nocron
+~/.acme.sh/acme.sh --set-default-ca --server letsencrypt
+~/.acme.sh/acme.sh --issue -d catalogue.example.com -w ~/catalogue/public
+mkdir -p ~/.acme.sh/deploy
+curl -o ~/.acme.sh/deploy/cpanel_uapi.sh \
+  https://raw.githubusercontent.com/acmesh-official/acme.sh/master/deploy/cpanel_uapi.sh
+~/.acme.sh/acme.sh --deploy -d catalogue.example.com --deploy-hook cpanel_uapi
+~/.acme.sh/acme.sh --install-cronjob
+```
+
+Notes that cost time:
+
+- The installer must be run from a directory where the script is actually named
+  `acme.sh`, and `/tmp` is often mounted `noexec` — use the home directory and
+  invoke it as `bash ./acme.sh`.
+- Run `--issue --staging` once first. It exercises the whole HTTP-01 path
+  without spending Let's Encrypt's rate limit on a mistake.
+- The deploy hook prints `Successfully deployed` even while cPanel emits
+  `adminbin ... exit 255` warnings. **Verify by reading the certificate off
+  port 443** and checking the serial changed — do not trust the message.
+- Certificates last 90 days. The cron job is the whole point; confirm it works
+  by running the renewal in a stripped environment, which is what cron gives it:
+  `env -i /bin/sh -c '"$HOME/.acme.sh"/acme.sh --cron --home "$HOME/.acme.sh" --force'`
+
+Then turn on HTTPS properly: set `'https_only' => true` in `app/config.php`
+**and** uncomment the redirect block in `public/.htaccess`. One without the
+other is worse than neither — the secure cookie stops a visitor who arrives
+over http from being able to sign in at all, with no error message.
+
+One warning about the redirect: it also applies to anything you are driving over
+http yourself. A `POST` answered with a `301` loses its body, so a deployment or
+maintenance script that worked five minutes ago will start doing nothing at all
+while still reporting success.
 
 ---
 
