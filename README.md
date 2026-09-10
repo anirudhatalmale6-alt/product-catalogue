@@ -80,13 +80,21 @@ description, availability, stock quantity, brand, weight, visibility flags.
 carries no pricing at all; every item shows "Price on request" (the wording is
 editable under Settings). Commercial terms live in `product_pricing` — price,
 currency, what the price is per, MOQ, incoterm, validity, supplier and notes —
-which is read only by the admin panel, through `PricingRepository`.
+which is read through `PricingRepository`.
 
-That is a deliberate split rather than a "show prices" setting. The public
-queries do not select the figures in the first place, so no toggle, template
-edit or stray `var_dump` can put one on a buyer's screen. `grep -rn
-"product_pricing" app/` returns the schema, that one class, and the admin
-controller — nothing else.
+That is a deliberate split rather than a "show prices" flag. The public queries
+do not select the figures in the first place, so no template edit or stray
+`var_dump` can put one on a buyer's screen. `grep -rn "product_pricing" app/`
+still returns only the schema, that one class and the admin controller.
+
+There is now **one** way a figure can reach a public page, and it is a single
+named method: `PricingRepository::forApprovedBuyer()`. It returns null unless
+the site owner has set "what signing in unlocks" to prices *and* the visitor is
+signed in as an approved buyer, and it strips supplier and internal notes even
+then. The check lives inside the method rather than only at the call site, so a
+template written later cannot leak a price by forgetting a guard. If you ever
+want a second such door, that is the moment to stop and think rather than widen
+this one.
 
 **`enquiries`** is a submitted shortlist. The buyer's shortlist lives in their
 browser until they press send, so browsing writes nothing and there is no login
@@ -139,9 +147,11 @@ order" and is the default — for sourcing lines that is honest, where claiming
 Worth stating plainly, because a catalogue that looks complete invites the
 assumption that it is:
 
-- **No public prices, by design.** The catalogue shows none and cannot: the
-  buyer-facing pages do not read the pricing table. Your own figures go on the
+- **No public prices, by design.** The catalogue shows none by default, and a
+  logged-out visitor cannot be shown one at all. Your own figures go on the
   internal price sheet under **Admin → Price sheet**, which exports to CSV.
+  Approved buyers can optionally be shown them — off unless you turn it on, see
+  **Buyer accounts** in USER-GUIDE.md.
 - **No prices entered yet.** The price sheet starts empty — 197 rows waiting
   for figures. Filter it by "Not priced yet" to work through them.
 - **No pack sizes, shelf lives, minimum orders, certifications or HS codes.**
@@ -152,8 +162,11 @@ assumption that it is:
   placeholder plates that say "image to follow". Uploading a real image against
   a product replaces its placeholder.
 - **No cart, checkout or payments.** Buyers shortlist items and send an
-  enquiry; you quote them. There is no customer account and nothing to pay for
-  online.
+  enquiry; you quote them. Nothing is bought or paid for online.
+- **Buyer accounts are vetted, not self-service.** The public form only ever
+  creates a *request*. A username and password are issued by hand from the
+  admin panel, and the generated password is shown once and stored only as a
+  hash. Nobody signs themselves up.
 - **Enquiry email is optional and unproven on your host.** Enquiries always
   save to the admin panel. If you set a notification address under Settings, a
   copy is emailed with PHP's `mail()`, which depends entirely on the host

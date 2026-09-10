@@ -530,3 +530,50 @@ a.stat:hover { text-decoration: none; border-color: var(--accent); }
      third of a short viewport - drop it rather than the columns. */
   .sheet thead th, .sheet-group th { position: static; }
 }
+
+/* ==========================================================================
+   Buyer accounts
+   ========================================================================== */
+
+/* Status filter strip above the list. */
+.adm-tabs {
+  display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: 1rem;
+  border-bottom: 1px solid var(--line); padding-bottom: .7rem;
+}
+.adm-tabs a {
+  display: inline-flex; align-items: center; gap: .4rem;
+  padding: .35rem .7rem; border: 1px solid var(--line);
+  border-radius: var(--radius-sm); background: var(--surface);
+  color: var(--ink-soft); font-size: .8rem; font-weight: 600;
+}
+.adm-tabs a:hover { border-color: var(--ink-faint); color: var(--ink); text-decoration: none; }
+.adm-tabs a.is-current { background: var(--ink); border-color: var(--ink); color: #fff; }
+.adm-tabs .pill {
+  font-size: .7rem; font-weight: 700; padding: 0 .32rem; border-radius: 999px;
+  background: var(--paper); color: var(--ink-faint);
+}
+.adm-tabs a.is-current .pill { background: rgba(255,255,255,.16); color: #fff; }
+
+/* The one-time credential panel. Deliberately loud - if this is missed the
+   password is gone and a new one has to be issued. */
+.panel-credentials { border-color: var(--accent); }
+.panel-credentials h2 { color: var(--accent-dk); }
+.cred-value {
+  font-size: 1.05rem; font-weight: 700; letter-spacing: .02em;
+  background: var(--paper); border: 1px dashed var(--line);
+  border-radius: var(--radius-sm); padding: .25rem .5rem; display: inline-block;
+  /* So it can be selected cleanly for copying. */
+  user-select: all;
+}
+
+/* Used by several list screens which had no rule for it, so an empty table
+   read as a blank area of page. */
+.empty-state {
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 2rem 1.4rem; text-align: center;
+}
+.empty-state h2 { margin-top: 0; }
+.empty-state p { max-width: 34rem; margin-inline: auto; color: var(--ink-soft); }
+
+.rich { white-space: normal; line-height: 1.6; }
+.row-actions a { font-size: .82rem; font-weight: 600; }

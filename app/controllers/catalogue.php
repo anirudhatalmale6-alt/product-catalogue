@@ -8,6 +8,40 @@ function catalogue_dispatch(array $segments): void
 {
     $first = $segments[0] ?? '';
 
+    // The buyer area lives in its own controller. Loaded on demand so the
+    // ordinary catalogue pages carry none of it.
+    if (in_array($first, ['account', 'request-access', 'access-requested'], true)) {
+        require APP_DIR . '/controllers/account.php';
+
+        if ($first === 'account') {
+            account_dispatch($segments);
+            return;
+        }
+        if ($first === 'access-requested') {
+            account_request_sent();
+            return;
+        }
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+            account_request_submit();
+        } else {
+            account_request_form();
+        }
+        return;
+    }
+
+    // When the owner has put the whole catalogue behind the login, every
+    // browsing page becomes the explanation page instead. The shortlist and
+    // enquiry routes are listed here too: without them a buyer could still
+    // walk products out of the JSON endpoint.
+    if (BuyerAuth::catalogueHidden()
+        && in_array($first, ['', 'catalogue', 'products', 'category', 'origin',
+                             'product', 'search', 'shortlist', 'enquiry',
+                             'enquiry-sent', 'shortlist-items'], true)) {
+        require APP_DIR . '/controllers/account.php';
+        account_gate_page();
+        return;
+    }
+
     switch ($first) {
         case '':
         case 'catalogue':
@@ -166,6 +200,11 @@ function catalogue_show(string $slug): void
                             (int) $product['id'],
                             $product['category_id'] ? (int) $product['category_id'] : null),
         'categories' => CategoryRepository::navigation(),
+        // Null for every visitor unless the owner has turned the price gate on
+        // AND this is a signed-in, approved buyer. The check is inside the
+        // method as well as implied here, so this line cannot leak a figure by
+        // being copied somewhere without its condition.
+        'buyerPrice' => PricingRepository::forApprovedBuyer((int) $product['id']),
         'metaDescription' => $product['short_description'] ?: setting('site_tagline', ''),
     ]);
 }
@@ -332,7 +371,7 @@ function enquiry_notify(array $enquiry): void
           . "Incoterm:    " . ($enquiry['incoterm'] ?: '-') . "\n\n"
           . "Products (" . count($items) . "):\n" . implode("\n", $lines) . "\n\n"
           . ($enquiry['message'] ? "Message:\n{$enquiry['message']}\n\n" : '')
-          . 'Open it in the admin panel: ' . url('admin/enquiries/' . $enquiry['id']) . "\n";
+          . 'Open it in the admin panel: ' . absolute_url('admin/enquiries/' . $enquiry['id']) . "\n";
 
     // The From address stays on this site's own domain so SPF still lines up;
     // the buyer's address goes in Reply-To, where hitting reply will use it.

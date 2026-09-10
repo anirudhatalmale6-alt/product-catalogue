@@ -47,6 +47,8 @@ if (session_status() === PHP_SESSION_NONE) {
 require APP_DIR . '/lib/Database.php';
 require APP_DIR . '/lib/helpers.php';
 require APP_DIR . '/lib/Auth.php';
+require APP_DIR . '/lib/BuyerAuth.php';
+require APP_DIR . '/lib/BuyerRepository.php';
 require APP_DIR . '/lib/ImageUploader.php';
 require APP_DIR . '/lib/ProductRepository.php';
 require APP_DIR . '/lib/CategoryRepository.php';

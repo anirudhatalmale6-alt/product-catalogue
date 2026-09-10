@@ -718,3 +718,131 @@ p  { margin: 0 0 1em; }
 /* Vertical breathing room for the two standalone pages, which have no sidebar
    or gallery to set their own rhythm. */
 .shortlist-page, .sent-state { margin-top: 1.6rem; margin-bottom: 2.5rem; }
+
+/* ==========================================================================
+   Forms and the buyer account area
+   --------------------------------------------------------------------------
+   The .field wrapper was already used by the enquiry form but had no rules of
+   its own, so those inputs fell back to the browser default - white boxes in
+   Arial sitting on a black page, with the label inline beside them. These
+   rules style .field itself, which fixes the existing enquiry form and gives
+   the account pages the same treatment for free.
+   ========================================================================== */
+
+.field { display: block; margin-bottom: .9rem; min-width: 0; }
+
+.field > label {
+  display: block; font-size: .7rem; font-weight: 700; letter-spacing: .05em;
+  text-transform: uppercase; color: var(--ink-faint); margin-bottom: .25rem;
+}
+
+.field input[type="text"],
+.field input[type="email"],
+.field input[type="tel"],
+.field input[type="url"],
+.field input[type="password"],
+.field input[type="number"],
+.field select,
+.field textarea {
+  width: 100%; padding: .5rem .6rem; background: var(--surface-2);
+  border: 1px solid var(--carbon); border-radius: var(--radius);
+  color: var(--white); font: inherit; font-size: .88rem;
+}
+.field textarea { resize: vertical; min-height: 5.5rem; line-height: 1.5; }
+.field input::placeholder, .field textarea::placeholder { color: var(--ink-faint); }
+.field input:focus, .field select:focus, .field textarea:focus {
+  outline: 2px solid var(--red-hi); outline-offset: 1px; border-color: var(--steel);
+}
+
+/* Autofill repaints the box white in WebKit, which would undo all of the
+   above the moment a browser filled the form in. */
+.field input:-webkit-autofill,
+.field input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--white);
+  -webkit-box-shadow: 0 0 0 1000px var(--surface-2) inset;
+}
+
+.field .hint, .hint {
+  margin: .3rem 0 0; font-size: .78rem; color: var(--ink-faint); line-height: 1.5;
+}
+.hint a { color: var(--accent); }
+
+/* --red-hi rather than --red: this is text, and Performance Red as type on a
+   dark surface measures 3.28:1. */
+.field .err { margin: .3rem 0 0; font-size: .78rem; color: var(--red-hi); }
+.field.has-error input, .field.has-error textarea, .field.has-error select {
+  border-color: var(--red);
+}
+
+.form-actions { margin-top: 1.2rem; display: flex; flex-wrap: wrap;
+                align-items: center; gap: .8rem; }
+.form-actions .hint { margin: 0; }
+
+.alert-ok { border-color: var(--ok); background: rgba(74, 222, 128, .1); }
+
+/* --- Standalone narrow pages (sign in, request access, account) ---------- */
+
+.narrow-page { max-width: 46rem; margin-top: 1.6rem; margin-bottom: 2.5rem; }
+.narrow-page .page-head { background: none; border-bottom: 1px solid var(--carbon);
+                          padding: 0 0 1rem; margin-bottom: 1.4rem; }
+
+.panel-form {
+  background: var(--surface); border: 1px solid var(--carbon);
+  border-radius: var(--radius); padding: 1.3rem;
+}
+
+/* --- Header account link ------------------------------------------------- */
+
+.account-link {
+  display: inline-flex; align-items: center; gap: .45rem;
+  padding: .42rem .7rem; border: 1px solid var(--carbon);
+  border-radius: var(--radius); color: var(--text-2);
+  font-size: .78rem; font-weight: 700; letter-spacing: .04em;
+  text-transform: uppercase; white-space: nowrap;
+}
+.account-link:hover { color: var(--white); border-color: var(--steel); text-decoration: none; }
+/* The company name can be long; it truncates rather than pushing the search
+   box off the header. */
+.account-text { max-width: 11rem; overflow: hidden; text-overflow: ellipsis; }
+
+/* --- Account area -------------------------------------------------------- */
+
+.acct-section {
+  background: var(--surface); border: 1px solid var(--carbon);
+  border-radius: var(--radius); padding: 1.1rem 1.3rem; margin-bottom: 1.2rem;
+}
+.acct-section h2 { font-size: .95rem; margin: 0 0 .8rem; }
+.acct-section .inline { display: inline; }
+
+.acct-details { display: grid; grid-template-columns: 9rem minmax(0, 1fr);
+                gap: .4rem 1rem; margin: 0; }
+.acct-details dt { font-size: .7rem; font-weight: 700; letter-spacing: .05em;
+                   text-transform: uppercase; color: var(--ink-faint); }
+.acct-details dd { margin: 0; font-size: .9rem; }
+
+.acct-table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+.acct-table th, .acct-table td {
+  text-align: left; padding: .5rem .6rem; border-bottom: 1px solid var(--line-soft);
+}
+.acct-table th { font-size: .7rem; font-weight: 700; letter-spacing: .05em;
+                 text-transform: uppercase; color: var(--ink-faint); }
+.acct-table tr:last-child td { border-bottom: 0; }
+
+@media (max-width: 560px) {
+  .acct-details { grid-template-columns: 1fr; gap: .1rem; }
+  .acct-details dd { margin-bottom: .5rem; }
+  /* The header is already tight on a phone; the icon alone carries it. */
+  .account-text { display: none; }
+  .account-link { padding: .42rem .5rem; }
+}
+
+/* Price shown to an approved buyer when the price gate is on. Deliberately
+   distinguished from the "price on request" line it replaces, and carrying the
+   indicative caveat, so nobody reads it as a firm quote. */
+.buyer-price { color: var(--white); }
+.buyer-price .cur { font-size: .7em; color: var(--ink-soft); margin-left: .25rem; }
+.buyer-price .unit { font-size: .55em; color: var(--ink-faint); margin-left: .4rem;
+                     text-transform: none; letter-spacing: 0; }
+.buyer-price-meta { margin: .1rem 0 0; font-size: .82rem; color: var(--ink-soft); }
+.buyer-price-note { margin: .35rem 0 .6rem; font-size: .78rem; color: var(--ink-faint);
+                    max-width: 30rem; line-height: 1.5; }

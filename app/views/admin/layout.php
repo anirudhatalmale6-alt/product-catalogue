@@ -43,6 +43,14 @@
     <a href="<?= url('admin/enquiries') ?>" class="<?= str_starts_with($r, 'admin/enquiries') ? 'is-current' : '' ?>">
       <span class="ico" aria-hidden="true">&#9993;</span> Enquiries
       <?php if ($newEnquiries): ?><span class="adm-badge"><?= $newEnquiries ?></span><?php endif; ?></a>
+    <?php // Only shown while the feature is switched on in Settings, so
+          // turning buyer accounts off does not leave a dead menu item. ?>
+    <?php if (BuyerAuth::accountsEnabled()): ?>
+      <?php $pendingBuyers = BuyerRepository::pendingCount(); ?>
+      <a href="<?= url('admin/buyers') ?>" class="<?= str_starts_with($r, 'admin/buyers') ? 'is-current' : '' ?>">
+        <span class="ico" aria-hidden="true">&#9787;</span> Buyer accounts
+        <?php if ($pendingBuyers): ?><span class="adm-badge"><?= $pendingBuyers ?></span><?php endif; ?></a>
+    <?php endif; ?>
     <a href="<?= url('admin/categories') ?>" class="<?= str_starts_with($r, 'admin/categories') ? 'is-current' : '' ?>">
       <span class="ico" aria-hidden="true">&#9636;</span> Categories</a>
     <a href="<?= url('admin/origins') ?>" class="<?= str_starts_with($r, 'admin/origins') ? 'is-current' : '' ?>">

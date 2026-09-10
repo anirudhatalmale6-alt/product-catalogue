@@ -262,7 +262,43 @@ CREATE TABLE admin_users (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ---------------------------------------------------------------------------
+-- Buyer accounts. A visitor fills in the "Request access" form and lands here
+-- as 'pending' with NO username and NO password - an application, not a login.
+-- Nothing about the row can sign in until someone in the admin panel approves
+-- it, at which point a username and a generated password are written.
+--
+-- username is deliberately NULLable: MySQL allows many NULLs inside a UNIQUE
+-- index, so every pending application can sit here without inventing a
+-- placeholder login that might later be typed into the login form by accident.
+-- ---------------------------------------------------------------------------
+CREATE TABLE buyer_accounts (
+    id             INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    username       VARCHAR(64)  NULL,
+    email          VARCHAR(190) NOT NULL,
+    contact_name   VARCHAR(120) NOT NULL,
+    company        VARCHAR(160) NULL,
+    phone          VARCHAR(60)  NULL,
+    country        VARCHAR(120) NULL,
+    interest       TEXT         NULL,
+    password_hash  VARCHAR(255) NULL,
+    status         ENUM('pending','approved','rejected','suspended')
+                   NOT NULL DEFAULT 'pending',
+    admin_notes    TEXT         NULL,
+    must_change_password TINYINT(1) NOT NULL DEFAULT 1,
+    last_login_at  DATETIME     NULL,
+    reviewed_at    DATETIME     NULL,
+    created_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_buyer_email (email),
+    UNIQUE KEY uq_buyer_username (username),
+    KEY idx_buyer_status (status, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------------
 -- Failed-login throttling. Rows older than an hour can be pruned freely.
+-- Shared by the admin login and the buyer login; the username column records
+-- whichever was typed, so one flood of guesses cannot be split across two
+-- doors to get twice the attempts.
 -- ---------------------------------------------------------------------------
 CREATE TABLE login_attempts (
     id           BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -295,7 +331,10 @@ INSERT INTO settings (setting_key, setting_value) VALUES
     ('contact_email',   ''),
     ('contact_phone',   '+1 (236) 516-8502'),
     ('enquiry_notify_email', ''),
-    ('enquiry_intro',   'Tell us where the goods are going and roughly what volume you need, and we will come back with pricing and lead times.');
+    ('enquiry_intro',   'Tell us where the goods are going and roughly what volume you need, and we will come back with pricing and lead times.'),
+    ('buyer_accounts_enabled', '1'),
+    ('buyer_gate',      'none'),
+    ('buyer_intro',     'Trade access is for verified buyers. Tell us who you are and we will review your request and send you a login.');
 
 -- ---------------------------------------------------------------------------
 -- No origins, categories or products are seeded here. This file is structure

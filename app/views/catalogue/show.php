@@ -82,7 +82,29 @@ $showWeightRow = $product['weight_grams'] !== null && !$hasWeightSpec;
     <?php endif; ?>
 
     <div class="buy-box">
-      <p class="poa poa-lg"><?= e(price_request_label()) ?></p>
+      <?php /* $buyerPrice is null for everyone unless the site owner has set
+               "what signing in unlocks" to prices AND this visitor is signed
+               in as an approved buyer. A logged-out visitor, and every visitor
+               at all on the default setting, sees the same "price on request"
+               line the catalogue has always shown. */ ?>
+      <?php if (!empty($buyerPrice)): ?>
+        <p class="poa poa-lg buyer-price">
+          <?= e(money($buyerPrice['price'])) ?>
+          <?php if ($buyerPrice['currency']): ?><span class="cur"><?= e($buyerPrice['currency']) ?></span><?php endif; ?>
+          <?php if ($buyerPrice['price_unit']): ?><span class="unit">per <?= e($buyerPrice['price_unit']) ?></span><?php endif; ?>
+        </p>
+        <p class="buyer-price-meta">
+          <?php if ($buyerPrice['incoterm']): ?><?= e($buyerPrice['incoterm']) ?><?php endif; ?>
+          <?php if ($buyerPrice['moq']): ?> &middot; minimum <?= e($buyerPrice['moq']) ?><?php endif; ?>
+          <?php if ($buyerPrice['valid_until']): ?>
+            &middot; indicative until <?= e(date('j M Y', strtotime((string) $buyerPrice['valid_until']))) ?>
+          <?php endif; ?>
+        </p>
+        <p class="buyer-price-note">Indicative only &mdash; send an enquiry for a
+           firm quote against your volume, packing and destination.</p>
+      <?php else: ?>
+        <p class="poa poa-lg"><?= e(price_request_label()) ?></p>
+      <?php endif; ?>
       <p class="stock stock-<?= stock_class($product['stock_status']) ?> stock-lg">
         <span class="dot" aria-hidden="true"></span>
         <?= e(stock_label($product['stock_status'])) ?>

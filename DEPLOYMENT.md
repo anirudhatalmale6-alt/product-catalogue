@@ -339,6 +339,32 @@ while still reporting success.
 
 ---
 
+## Updating an already-live site
+
+The database schema changes over time. Rather than hand-editing tables, every
+change ships as a file in `sql/migrations/` and is applied by:
+
+```
+php tools/migrate.php            # lists what would run, changes nothing
+php tools/migrate.php --apply    # runs them
+```
+
+Applied filenames are recorded in a `schema_migrations` table, so running it
+twice does nothing the second time and it is safe to run after every deploy.
+
+The migration files themselves are written to be additive — new tables and
+`INSERT IGNORE` on settings — so an existing catalogue, its pricing and its
+enquiries are untouched. Read the file before running it and confirm that for
+yourself; a migration that drops or rewrites a column deserves a database
+backup first, and this tool cannot roll DDL back because MySQL commits it
+implicitly.
+
+**No shell on the host?** Shared hosting without SSH usually still offers a
+cron entry or a "run a PHP script" box in the control panel; a one-off cron
+line running the command above works. Failing that, open the `.sql` file and
+paste it into phpMyAdmin, then add the filename to `schema_migrations`
+yourself so the tool does not try to run it again.
+
 ## PHP settings for uploads
 
 The application limits images to 6 MB (`uploads.max_bytes` in

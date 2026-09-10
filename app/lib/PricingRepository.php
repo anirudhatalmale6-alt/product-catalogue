@@ -1,11 +1,16 @@
 <?php
 /**
- * Internal pricing. Admin-only, by construction.
+ * Internal pricing. Admin-only, with exactly one deliberate exception.
  *
- * Every method here is called from app/controllers/admin.php and nowhere else.
- * The catalogue controller does not include this class and ProductRepository
- * never joins product_pricing, so a public page has no route to a figure even
- * if a template asked for one.
+ * Every method here is called from app/controllers/admin.php EXCEPT
+ * forApprovedBuyer(), which is the single door the catalogue controller may
+ * knock on. ProductRepository still never joins product_pricing, so there is
+ * no accidental route to a figure - a public page has to name that one method
+ * on purpose, and that method refuses unless the site owner has switched the
+ * price gate on AND the visitor is a signed-in, approved buyer.
+ *
+ * If you are adding a public feature and find yourself wanting a second
+ * exception here, that is the moment to stop and ask rather than widen this.
  */
 class PricingRepository
 {
@@ -21,6 +26,46 @@ class PricingRepository
     {
         return Database::one(
             'SELECT * FROM product_pricing WHERE product_id = ?', [$productId]);
+    }
+
+    /**
+     * The ONE method a public page may call. Returns null - not a figure, not
+     * a partial row - unless every condition holds:
+     *
+     *   1. buyer accounts are switched on at all
+     *   2. the site owner has chosen 'prices' as what signing in unlocks
+     *   3. this visitor is signed in as an APPROVED buyer
+     *
+     * The check lives here rather than only in the controller so that a
+     * template written next year cannot leak a price by forgetting a guard.
+     * It fails closed: any doubt and the answer is null.
+     *
+     * Supplier and internal notes are stripped even for an approved buyer.
+     * Those are your own commercial relationships and were never part of what
+     * a customer is being shown.
+     */
+    public static function forApprovedBuyer(int $productId): ?array
+    {
+        if (!BuyerAuth::canSeePrices()) {
+            return null;
+        }
+        $row = self::find($productId);
+        if (!$row || $row['price'] === null || $row['price'] === '') {
+            return null;
+        }
+        // An expired quote is worse than no quote - it is a number the buyer
+        // will hold you to.
+        if (!empty($row['valid_until']) && $row['valid_until'] < date('Y-m-d')) {
+            return null;
+        }
+        return [
+            'price'       => $row['price'],
+            'currency'    => $row['currency'],
+            'price_unit'  => $row['price_unit'],
+            'moq'         => $row['moq'],
+            'incoterm'    => $row['incoterm'],
+            'valid_until' => $row['valid_until'],
+        ];
     }
 
     /**

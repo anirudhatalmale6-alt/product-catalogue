@@ -318,6 +318,81 @@ hosts cap how much can be uploaded in one request.
 
 ---
 
+## Buyer accounts
+
+A visitor cannot make themselves an account. They fill in a short form, it
+arrives here as a request, and **nobody can sign in until you approve it**.
+That is the whole point of the feature, so it is worth saying plainly: an
+account with no decision on it is not a half-open door, it is a closed one.
+
+### How it works, start to finish
+
+1. A buyer finds **Request trade access** in the footer, or **Trade sign in**
+   in the header, and fills in their name, company and email.
+2. It appears under **Buyer accounts** in the left-hand menu, marked *Waiting
+   for review*, with a number beside the menu item so you cannot walk past it.
+   If you have set a notification email under Settings, you also get an email.
+3. You open it, read what they said, and either approve or reject.
+4. Approving generates a username and a password and shows them **on that
+   screen, once**. You copy them into an email or a message and send them.
+5. The first time they sign in they are asked to choose their own password.
+
+### Why the password is only shown once
+
+It is stored scrambled, the same way yours is. That means the screen you are
+looking at genuinely is the only place it exists in readable form — not even
+this software can show it to you again, and neither could anyone who got hold
+of a copy of the database. If you close the page before sending it, press
+**Reset password** and issue a new one. That is not a workaround, it is the
+intended path.
+
+### Turning someone off again
+
+- **Suspend access** — they are signed out on their very next click and their
+  password stops working. Use this for a customer you may want back.
+- **Reject** — for a request you are turning down. They are not told.
+- **Delete** — removes the account and everything they told you. Their
+  enquiries stay, because those are your records rather than theirs.
+
+Suspending and rejecting both clear the password. If you let someone back in
+later, approving again issues a fresh one, so an old password can never quietly
+start working again.
+
+### What signing in actually unlocks
+
+This is a setting, and it starts at **nothing extra**. Three choices:
+
+**Nothing extra.** The catalogue stays completely public and Google can still
+list it. Signing in gives your regulars their own page with the enquiries they
+have sent you. Nothing is hidden from anybody. Start here.
+
+**Prices.** Approved buyers see the figures from your internal price sheet on
+product pages, marked *indicative*, with your minimum and incoterm beside them.
+Everybody else still sees "Price on request". Two things are worth knowing
+before you switch this on:
+
+- **Supplier and internal notes are never shown**, to anyone, ever. Those are
+  your own commercial relationships and were never part of what a customer sees.
+- **A price with an expiry date in the past is not shown at all.** An out-of-date
+  number is worse than no number, because a buyer will hold you to it.
+
+**The whole catalogue.** Visitors see a sign-in page instead of your products.
+Be careful with this one: if a visitor cannot see the catalogue then neither can
+Google, so nobody new can find you through a search. Only worth it if the
+product list itself is confidential.
+
+You can change your mind at any time; it takes effect on the next page load.
+
+### Switching the feature off
+
+Set **Buyer accounts** to *Off* and the request form, the sign-in page and the
+account area all disappear from the site, and the menu item disappears from
+here. Nothing is deleted — the accounts sit where they are, and switching it
+back on brings everything back exactly as it was.
+
+
+---
+
 ## Settings
 
 **Settings** changes site-wide values without touching any code:
@@ -337,6 +412,8 @@ hosts cap how much can be uploaded in one request.
 - **Enquiry notification email** — optional; see
   **[Enquiries](#enquiries)** above.
 - **Shortlist page introduction** — the line above the enquiry form.
+- **Buyer accounts**, **What signing in unlocks** and **Request access page
+  introduction** — see **[Buyer accounts](#buyer-accounts)** below.
 
 ### The logo
 

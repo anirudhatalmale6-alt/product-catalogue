@@ -12,6 +12,12 @@ $labels = [
     'contact_phone'   => ['Contact phone', 'Optional. Leave blank to keep it off the public site.'],
     'enquiry_notify_email' => ['Enquiry notification email',
         'Optional. A copy of every enquiry is emailed here. Enquiries are always saved to the admin panel whether this is set or not.'],
+    'buyer_accounts_enabled' => ['Buyer accounts',
+        'Switch the whole thing off and the request form, the sign-in page and this section\'s effects all disappear from the site. Nothing is deleted.'],
+    'buyer_gate'      => ['What signing in unlocks',
+        'Start with "nothing extra" until you are sure. Choosing prices publishes your internal price sheet figures to every approved buyer. Choosing the whole catalogue hides all your products from Google, so nobody new can find you through search.'],
+    'buyer_intro'     => ['Request access page introduction',
+        'The line at the top of the "Request trade access" form.'],
     'enquiry_intro'   => ['Shortlist page introduction',
         'The line at the top of the shortlist page, above the enquiry form.'],
 ];
@@ -29,11 +35,32 @@ $labels = [
   <section class="panel">
     <div class="panel-body">
       <?php foreach ($keys as $k): ?>
+        <?php if ($k === 'buyer_accounts_enabled'): ?>
+          <?php /* Everything from here down belongs to the buyer accounts
+                   feature, so it gets its own heading rather than sitting in
+                   one long undifferentiated column. */ ?>
+          </div></section>
+          <section class="panel"><div class="panel-body">
+          <h2>Buyer accounts</h2>
+          <p class="hint">People can ask for a login from the site, you approve
+             or turn down each request, and you choose what signing in unlocks.</p>
+        <?php endif; ?>
         <div class="field">
           <label for="<?= $k ?>"><?= e($labels[$k][0] ?? $k) ?></label>
-          <input id="<?= $k ?>" name="<?= $k ?>" type="<?= $k === 'per_page' ? 'number' : 'text' ?>"
-                 <?= $k === 'per_page' ? 'min="4" max="60" step="1"' : '' ?>
-                 value="<?= e((string) setting($k, '')) ?>">
+          <?php if (isset($choices[$k])): ?>
+            <select id="<?= $k ?>" name="<?= $k ?>">
+              <?php foreach ($choices[$k] as $value => $text): ?>
+                <option value="<?= e((string) $value) ?>"
+                  <?= (string) setting($k, '') === (string) $value ? 'selected' : '' ?>>
+                  <?= e($text) ?>
+                </option>
+              <?php endforeach; ?>
+            </select>
+          <?php else: ?>
+            <input id="<?= $k ?>" name="<?= $k ?>" type="<?= $k === 'per_page' ? 'number' : 'text' ?>"
+                   <?= $k === 'per_page' ? 'min="4" max="60" step="1"' : '' ?>
+                   value="<?= e((string) setting($k, '')) ?>">
+          <?php endif; ?>
           <?php if (!empty($labels[$k][1])): ?><p class="hint"><?= e($labels[$k][1]) ?></p><?php endif; ?>
         </div>
       <?php endforeach; ?>

@@ -80,6 +80,22 @@ function admin_dispatch(array $s): void
             admin_origin_list();
             return;
 
+        // Buyer accounts. Every write in here is a decision about who may sign
+        // in, so they are all POST + CSRF checked; nothing changes on a GET.
+        case 'buyers':
+            $sub = $s[1] ?? '';
+            if ($sub === 'approve')  { admin_buyer_approve();  return; }
+            if ($sub === 'status')   { admin_buyer_status();   return; }
+            if ($sub === 'reset')    { admin_buyer_reset();    return; }
+            if ($sub === 'notes')    { admin_buyer_notes();    return; }
+            if ($sub === 'delete')   { admin_buyer_delete();   return; }
+            if ($sub !== '' && ctype_digit((string) $sub)) {
+                admin_buyer_show((int) $sub);
+                return;
+            }
+            admin_buyer_list();
+            return;
+
         case 'settings':
             admin_settings();
             return;
@@ -607,12 +623,35 @@ function admin_settings(): void
 {
     $keys = ['site_name', 'site_tagline', 'currency_code', 'currency_symbol',
              'per_page', 'price_request_label', 'contact_email', 'contact_phone',
-             'enquiry_notify_email', 'enquiry_intro'];
+             'enquiry_notify_email', 'enquiry_intro',
+             'buyer_accounts_enabled', 'buyer_gate', 'buyer_intro'];
+
+    // Settings whose value has to be one of a fixed list. The view renders
+    // these as dropdowns; the same list is enforced here so a hand-made POST
+    // cannot write something the rest of the code does not understand.
+    $choices = [
+        'buyer_accounts_enabled' => [
+            '0' => 'Off - no sign in, no request form',
+            '1' => 'On - buyers can request access and sign in',
+        ],
+        'buyer_gate' => [
+            'none'      => 'Nothing extra - the catalogue stays fully public',
+            'prices'    => 'Prices - approved buyers see your internal figures',
+            'catalogue' => 'The whole catalogue - visitors must sign in to see anything',
+        ],
+    ];
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         csrf_check();
         foreach ($keys as $k) {
             $val = trim((string) ($_POST[$k] ?? ''));
+
+            if (isset($choices[$k]) && !isset($choices[$k][$val])) {
+                // Keep whatever is already stored rather than writing a value
+                // that would be read back as a default and quietly change
+                // behaviour.
+                continue;
+            }
             if ($k === 'per_page') {
                 $val = (string) max(4, min(60, (int) $val ?: 12));
             }
@@ -639,7 +678,9 @@ function admin_settings(): void
         redirect('admin/settings');
     }
 
-    view('admin/settings', ['title' => 'Settings', 'keys' => $keys], 'admin/layout');
+    view('admin/settings',
+        ['title' => 'Settings', 'keys' => $keys, 'choices' => $choices],
+        'admin/layout');
 }
 
 function admin_password(): void
@@ -1104,4 +1145,203 @@ function admin_bulk_images_process(): array
     }
 
     return $report;
+}
+
+// ---------------------------------------------------------------------------
+// Buyer accounts
+//
+// The vetting screen. A request arrives from the public form as 'pending' and
+// stays unusable until somebody here approves it, at which point a username
+// and a generated password are issued.
+//
+// The generated password is shown to the administrator EXACTLY ONCE, on the
+// screen immediately after approval, and is never written anywhere except as a
+// bcrypt hash. If that page is closed before the password is passed on, the
+// honest answer is "issue a new one" - which is what the Reset password button
+// is for. Storing it in readable form so it could be looked up later would
+// mean a database backup carried every buyer's working password.
+// ---------------------------------------------------------------------------
+
+function admin_buyer_guard(): void
+{
+    if (!BuyerAuth::accountsEnabled()) {
+        flash('error', 'Buyer accounts are switched off under Settings.');
+        redirect('admin/settings');
+    }
+}
+
+function admin_buyer_list(): void
+{
+    admin_buyer_guard();
+
+    $status = $_GET['status'] ?? '';
+    $status = in_array($status, BuyerRepository::STATUSES, true) ? $status : null;
+    $page   = max(1, (int) ($_GET['page'] ?? 1));
+
+    $result = BuyerRepository::paginate($status, $page);
+
+    view('admin/buyers_list', [
+        'title'   => 'Buyer accounts',
+        'rows'    => $result['rows'],
+        'total'   => $result['total'],
+        'page'    => $page,
+        'perPage' => 25,
+        'status'  => $status,
+        'counts'  => BuyerRepository::countsByStatus(),
+    ], 'admin/layout');
+}
+
+function admin_buyer_show(int $id): void
+{
+    admin_buyer_guard();
+
+    $buyer = BuyerRepository::find($id);
+    if (!$buyer) {
+        not_found('That buyer account does not exist.');
+    }
+
+    // Set by admin_buyer_approve() / admin_buyer_reset() and cleared as it is
+    // read, so a refresh does not redisplay it and the browser back button
+    // does not either.
+    $issued = $_SESSION['issued_credentials'] ?? null;
+    unset($_SESSION['issued_credentials']);
+    if ($issued && (int) ($issued['buyer_id'] ?? 0) !== $id) {
+        $issued = null;
+    }
+
+    view('admin/buyer_show', [
+        'title'      => $buyer['company'] ?: $buyer['contact_name'],
+        'buyer'      => $buyer,
+        'issued'     => $issued,
+        'suggestion' => BuyerRepository::suggestUsername($buyer),
+        'enquiries'  => Database::all(
+            'SELECT id, reference, status, created_at FROM enquiries
+              WHERE email = ? ORDER BY created_at DESC LIMIT 20',
+            [$buyer['email']]),
+    ], 'admin/layout');
+}
+
+function admin_buyer_approve(): void
+{
+    admin_buyer_guard();
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        redirect('admin/buyers');
+    }
+    csrf_check();
+
+    $id = (int) ($_POST['id'] ?? 0);
+    $buyer = $id ? BuyerRepository::find($id) : null;
+    if (!$buyer) {
+        flash('error', 'That buyer account no longer exists.');
+        redirect('admin/buyers');
+    }
+
+    try {
+        $creds = BuyerRepository::approve($id, (string) ($_POST['username'] ?? ''));
+    } catch (Throwable $e) {
+        error_log('Buyer approval failed: ' . $e->getMessage());
+        flash('error', 'Something went wrong issuing the credentials. Nothing was changed.');
+        redirect('admin/buyers/' . $id);
+    }
+
+    $_SESSION['issued_credentials'] = [
+        'buyer_id' => $id,
+        'username' => $creds['username'],
+        'password' => $creds['password'],
+        'reason'   => 'approved',
+    ];
+    flash('success', 'Approved. Send them the login below - it is shown once.');
+    redirect('admin/buyers/' . $id);
+}
+
+function admin_buyer_reset(): void
+{
+    admin_buyer_guard();
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        redirect('admin/buyers');
+    }
+    csrf_check();
+
+    $id    = (int) ($_POST['id'] ?? 0);
+    $buyer = $id ? BuyerRepository::find($id) : null;
+    if (!$buyer || $buyer['status'] !== 'approved') {
+        flash('error', 'Only an approved account can have its password reset.');
+        redirect('admin/buyers' . ($id ? '/' . $id : ''));
+    }
+
+    $password = BuyerRepository::resetPassword($id);
+    $_SESSION['issued_credentials'] = [
+        'buyer_id' => $id,
+        'username' => $buyer['username'],
+        'password' => $password,
+        'reason'   => 'reset',
+    ];
+    flash('success', 'A new password has been issued. It is shown once, below.');
+    redirect('admin/buyers/' . $id);
+}
+
+function admin_buyer_status(): void
+{
+    admin_buyer_guard();
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        redirect('admin/buyers');
+    }
+    csrf_check();
+
+    $id     = (int) ($_POST['id'] ?? 0);
+    $status = (string) ($_POST['status'] ?? '');
+
+    // 'approved' is deliberately not accepted here. Approving has to issue
+    // credentials, so it goes through admin_buyer_approve() and nowhere else -
+    // otherwise an account could reach the approved state with a NULL password
+    // hash and no way in, which looks like a broken login rather than a
+    // half-finished approval.
+    if (!in_array($status, ['rejected', 'suspended', 'pending'], true)) {
+        flash('error', 'Unknown status.');
+        redirect('admin/buyers/' . $id);
+    }
+
+    $buyer = $id ? BuyerRepository::find($id) : null;
+    if (!$buyer) {
+        flash('error', 'That buyer account no longer exists.');
+        redirect('admin/buyers');
+    }
+
+    BuyerRepository::setStatus($id, $status);
+    flash('success', $status === 'suspended'
+        ? 'Access suspended. Their password no longer works.'
+        : ($status === 'rejected' ? 'Request rejected.' : 'Moved back to pending.'));
+    redirect('admin/buyers/' . $id);
+}
+
+function admin_buyer_notes(): void
+{
+    admin_buyer_guard();
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        redirect('admin/buyers');
+    }
+    csrf_check();
+
+    $id = (int) ($_POST['id'] ?? 0);
+    if ($id) {
+        BuyerRepository::saveNotes($id, (string) ($_POST['admin_notes'] ?? ''));
+        flash('success', 'Notes saved.');
+    }
+    redirect('admin/buyers/' . $id);
+}
+
+function admin_buyer_delete(): void
+{
+    admin_buyer_guard();
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        redirect('admin/buyers');
+    }
+    csrf_check();
+
+    $id = (int) ($_POST['id'] ?? 0);
+    if ($id) {
+        BuyerRepository::delete($id);
+        flash('success', 'Buyer account deleted.');
+    }
+    redirect('admin/buyers');
 }

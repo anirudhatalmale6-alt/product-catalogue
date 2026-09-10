@@ -50,6 +50,16 @@
       <span class="shortlist-count" data-shortlist-count hidden>0</span>
     </a>
 
+    <?php // Only rendered when buyer accounts are switched on in Settings, so
+          // turning the feature off leaves the header exactly as it was. ?>
+    <?php if (BuyerAuth::accountsEnabled()): ?>
+      <?php $buyer = BuyerAuth::user(); ?>
+      <a class="account-link" href="<?= url($buyer ? 'account' : 'account/login') ?>">
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8m8 8a8 8 0 0 0-16 0"/></svg>
+        <span class="account-text"><?= $buyer ? e($buyer['company'] ?: $buyer['contact_name']) : 'Trade sign in' ?></span>
+      </a>
+    <?php endif; ?>
+
     <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav">
       <span></span><span></span><span></span>
       <em class="sr-only">Menu</em>
@@ -110,6 +120,9 @@
     </div>
     <div class="footer-links">
       <a href="<?= url('catalogue') ?>">Catalogue</a>
+      <?php if (BuyerAuth::accountsEnabled() && !BuyerAuth::check()): ?>
+        <a href="<?= url('request-access') ?>">Trade access</a>
+      <?php endif; ?>
       <a href="<?= url('admin') ?>">Admin</a>
     </div>
   </div>

@@ -84,6 +84,26 @@ function url(string $path = '', array $query = []): string
     return $u;
 }
 
+/**
+ * The same URL with the scheme and host on the front.
+ *
+ * Anything that leaves the browser needs this: a link in an email, or a sign-in
+ * address an administrator is going to copy into a message. "/account/login" is
+ * a perfectly good link inside a page and completely useless in an inbox.
+ *
+ * HTTP_HOST is filtered rather than trusted, because it is whatever the client
+ * put in the Host header and this value ends up in outgoing mail.
+ */
+function absolute_url(string $path = '', array $query = []): string
+{
+    $host = preg_replace('/[^A-Za-z0-9.\-:]/', '',
+        (string) ($_SERVER['HTTP_HOST'] ?? 'localhost'));
+    $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+          || (($_SERVER['SERVER_PORT'] ?? '') === '443')
+          || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
+    return ($https ? 'https://' : 'http://') . ($host ?: 'localhost') . url($path, $query);
+}
+
 /** URL of an uploaded file stored as "products/xyz.jpg". */
 function upload_url(?string $relative): string
 {
@@ -115,10 +135,10 @@ function money($amount): string
  * The label the buyer-facing pages show where a price would otherwise sit.
  * Editable under Settings.
  *
- * There is no price_on_request() test any more because there is nothing to
- * test: the public catalogue carries no pricing at all, so every product shows
- * this label. Internal figures live in product_pricing and are only ever read
- * by the admin panel through PricingRepository.
+ * Shown to every visitor by default. The one exception is a signed-in,
+ * approved buyer on a site whose owner has set "what signing in unlocks" to
+ * prices - see PricingRepository::forApprovedBuyer(), which is the only method
+ * a public page may use to reach a figure.
  */
 function price_request_label(): string
 {
