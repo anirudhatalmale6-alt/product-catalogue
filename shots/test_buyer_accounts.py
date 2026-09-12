@@ -81,6 +81,7 @@ def main():
     php('Database::run("DELETE FROM login_attempts");')
     setting("buyer_accounts_enabled", "1")
     setting("buyer_gate", "none")
+    setting("buyer_signup_mode", "vetted")
 
     with sync_playwright() as p:
         b = p.chromium.launch()
@@ -272,6 +273,12 @@ def main():
         # ------------------------------------------------------------------
         setting("buyer_gate", "prices")
 
+        # Approving from the admin panel grants price access, so this buyer has
+        # it. The instant-signup section below proves the other half: that a
+        # self-registered account does NOT.
+        pa = php(f'$r=BuyerRepository::findByEmail("{APPLICANT_EMAIL}"); echo $r["pricing_access"];')
+        check("approving from the admin panel grants price access", pa == "1", pa)
+
         go(buyer, "/product/avocados")
         btext = buyer.evaluate("document.body.textContent")
         check("approved buyer sees the internal figure", "3.25" in btext)
@@ -371,6 +378,101 @@ def main():
         check("repeated wrong passwords get throttled", throttled_at is not None,
               f"after {throttled_at} attempts")
         php('Database::run("DELETE FROM login_attempts");')
+
+
+        # ------------------------------------------------------------------
+        print("\n10. Instant sign-up")
+        # ------------------------------------------------------------------
+        setting("buyer_signup_mode", "instant")
+        setting("buyer_gate", "prices")
+        php('Database::run("DELETE FROM buyer_accounts WHERE email LIKE \'%selfserve.test\'");')
+
+        self_ctx = b.new_context(viewport={"width": 1280, "height": 900})
+        selfp = self_ctx.new_page()
+        go(selfp, "/request-access")
+        body = rendered(selfp)
+        check("form becomes a sign-up form", "create your account" in body)
+        check("and asks for a password", selfp.query_selector("#password") is not None)
+
+        # CONTROL: too short a password must not create an account.
+        selfp.fill("#contact_name", "Short Pass")
+        selfp.fill("#company", "Shortpass Co")
+        selfp.fill("#email", "short@selfserve.test")
+        selfp.evaluate("() => { document.querySelector('#password').removeAttribute('minlength');"
+                       "document.querySelector('#password').removeAttribute('required');"
+                       "document.querySelector('#confirm_password').removeAttribute('required'); }")
+        selfp.fill("#password", "abc")
+        selfp.fill("#confirm_password", "abc")
+        selfp.click("form.panel-form button[type=submit]")
+        selfp.wait_for_load_state("load")
+        n = php('echo Database::scalar("SELECT COUNT(*) FROM buyer_accounts WHERE email=\'short@selfserve.test\'");')
+        check("CONTROL a 3-character password creates nothing", n == "0", f"rows={n}")
+
+        # The real sign-up.
+        go(selfp, "/request-access")
+        selfp.fill("#contact_name", "Sam Visitor")
+        selfp.fill("#company", "Walk In Trading")
+        selfp.fill("#email", "sam@selfserve.test")
+        selfp.fill("#password", "VisitorPass2026!")
+        selfp.fill("#confirm_password", "VisitorPass2026!")
+        selfp.click("form.panel-form button[type=submit]")
+        selfp.wait_for_load_state("load")
+        check("signed in immediately after signing up",
+              "/request-access" not in selfp.url and "/account/login" not in selfp.url, selfp.url)
+
+        row = php('$r=BuyerRepository::findByEmail("sam@selfserve.test");'
+                  'echo $r["status"]."|".$r["pricing_access"]."|".$r["must_change_password"]'
+                  '."|".($r["reviewed_at"]===null?"NULLreviewed":"reviewed");')
+        check("account is active, self-registered, and NOT priced",
+              row == "approved|0|0|NULLreviewed", row)
+
+        go(selfp, "/product/avocados")
+        stext = selfp.evaluate("document.body.textContent")
+        check("self-registered buyer can see the catalogue", "Avocados" in stext)
+        check("CONTROL self-registered buyer sees NO price", "3.25" not in stext)
+        check("they see the request label instead", "Price on request" in stext)
+
+        # CONTROL: signing up again with the same address must not make a second
+        # account, and must say so rather than silently appearing to work.
+        selfp2 = b.new_context(viewport={"width": 1280, "height": 900}).new_page()
+        go(selfp2, "/request-access")
+        selfp2.fill("#contact_name", "Sam Again")
+        selfp2.fill("#company", "Walk In Trading")
+        selfp2.fill("#email", "sam@selfserve.test")
+        selfp2.fill("#password", "AnotherPass2026!")
+        selfp2.fill("#confirm_password", "AnotherPass2026!")
+        selfp2.click("form.panel-form button[type=submit]")
+        selfp2.wait_for_load_state("load")
+        n = php('echo Database::scalar("SELECT COUNT(*) FROM buyer_accounts WHERE email=\'sam@selfserve.test\'");')
+        check("CONTROL duplicate sign-up makes no second account", n == "1", f"rows={n}")
+        check("and says so plainly", "already an account" in rendered(selfp2))
+
+        # The owner grants prices to this one account from the admin panel.
+        sam_id = php('$r=BuyerRepository::findByEmail("sam@selfserve.test"); echo $r["id"];')
+        go(page, "/admin/buyers/" + sam_id)
+        check("admin flags it as self-created", "created their own account" in rendered(page))
+        page.click("form[action$='buyers/pricing'] button[type=submit]")
+        page.wait_for_load_state("load")
+        go(selfp, "/product/avocados")
+        check("granting price access shows them the figure",
+              "3.25" in selfp.evaluate("document.body.textContent"))
+
+        # And taking it away again.
+        go(page, "/admin/buyers/" + sam_id)
+        page.click("form[action$='buyers/pricing'] button[type=submit]")
+        page.wait_for_load_state("load")
+        go(selfp, "/product/avocados")
+        check("CONTROL removing it hides the figure again",
+              "3.25" not in selfp.evaluate("document.body.textContent"))
+
+        # Suspending must revoke price access too, not just the password.
+        php(f'BuyerRepository::setPricingAccess({sam_id}, true);')
+        php(f'BuyerRepository::setStatus({sam_id}, "suspended");')
+        pa = php(f'$r=BuyerRepository::find({sam_id}); echo $r["pricing_access"];')
+        check("CONTROL suspending also revokes price access", pa == "0", pa)
+
+        setting("buyer_signup_mode", "vetted")
+        setting("buyer_gate", "none")
 
         check("no JavaScript console errors anywhere", not errors, errors[:3])
         b.close()

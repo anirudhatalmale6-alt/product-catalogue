@@ -846,3 +846,7 @@ p  { margin: 0 0 1em; }
 .buyer-price-meta { margin: .1rem 0 0; font-size: .82rem; color: var(--ink-soft); }
 .buyer-price-note { margin: .35rem 0 .6rem; font-size: .78rem; color: var(--ink-faint);
                     max-width: 30rem; line-height: 1.5; }
+
+/* "Create an account" is long enough to wrap into two lines in the footer
+   column, which reads as two separate links. */
+.footer-links a { white-space: nowrap; }

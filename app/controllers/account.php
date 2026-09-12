@@ -3,9 +3,17 @@
  * The buyer side of the site: requesting access, signing in, and the small
  * account area an approved buyer sees afterwards.
  *
- * Nothing in this file can create an account that works. The public form only
- * ever writes a 'pending' row; issuing a username and password happens in the
- * admin panel, by a person, on purpose.
+ * There are two sign-up modes, chosen in Admin -> Settings:
+ *
+ * - 'vetted'  - the public form only ever writes a 'pending' row. Issuing a
+ *               username and password happens in the admin panel, by a person,
+ *               on purpose.
+ * - 'instant' - the visitor chooses their own password and is signed in at
+ *               once. They can browse and shortlist.
+ *
+ * In BOTH modes nothing in this file can grant price visibility. That is a
+ * separate flag only the admin panel can set, because once anybody can create
+ * an account, being signed in says nothing about who somebody is.
  */
 
 function account_dispatch(array $segments): void
@@ -58,7 +66,8 @@ function account_request_form(): void
     unset($_SESSION['access_errors'], $_SESSION['access_old']);
 
     view('account/request', [
-        'title'      => 'Request trade access',
+        'title'      => BuyerAuth::signupMode() === 'instant'
+                        ? 'Create your account' : 'Request trade access',
         'categories' => CategoryRepository::navigation(),
         'errors'     => $errors,
         'old'        => $old,
@@ -110,13 +119,71 @@ function account_request_submit(): void
         redirect('request-access');
     }
 
-    // An address that has already applied is NOT told so. Otherwise this form
-    // becomes a way of asking "does this company already buy from you?", which
-    // is a question a competitor would enjoy being able to ask. They get the
-    // same confirmation page either way and the existing row is left exactly
-    // as it is - in particular a second application cannot reset a rejected
-    // one back to pending.
+    $instant = BuyerAuth::signupMode() === 'instant';
+
+    // In instant mode they choose their own password here and there is nobody
+    // to email it to them, so it has to be validated like any other password.
+    $password = (string) ($_POST['password'] ?? '');
+    if ($instant) {
+        if (strlen($password) < 10) {
+            $errors['password'] = 'Please choose a password of at least 10 characters.';
+        }
+        if ($password !== (string) ($_POST['confirm_password'] ?? '')) {
+            $errors['confirm_password'] = 'The two passwords do not match.';
+        }
+        if ($errors) {
+            $_SESSION['access_errors'] = $errors;
+            $_SESSION['access_old']    = $data;
+            redirect('request-access');
+        }
+    }
+
     $existing = BuyerRepository::findByEmail($data['email']);
+
+    if ($instant) {
+        // Here the address HAS to be treated differently, because silently
+        // doing nothing would look to the visitor exactly like a successful
+        // sign-up that then refuses to let them in. Saying "this address
+        // already has an account, sign in instead" is the only honest answer,
+        // and it is what every sign-up form on the web already does.
+        if ($existing) {
+            $_SESSION['access_errors'] = ['email' =>
+                'There is already an account for that address. Sign in instead, '
+                . 'or get in touch if you cannot get in.'];
+            $_SESSION['access_old'] = $data;
+            redirect('request-access');
+        }
+
+        try {
+            $id = BuyerRepository::selfRegister($data, $password);
+        } catch (Throwable $e) {
+            error_log('Self sign-up failed: ' . $e->getMessage());
+            $_SESSION['access_errors'] = ['email' =>
+                'Something went wrong creating your account. Please try again.'];
+            $_SESSION['access_old'] = $data;
+            redirect('request-access');
+        }
+
+        account_notify_new_request($id, $data, true);
+
+        // Sign them straight in. Making somebody type the password they chose
+        // four seconds ago is the kind of friction this mode exists to remove.
+        session_regenerate_id(true);
+        $_SESSION['buyer_id'] = $id;
+        Database::run('UPDATE buyer_accounts SET last_login_at = NOW() WHERE id = ?', [$id]);
+
+        $intended = $_SESSION['buyer_intended'] ?? '';
+        unset($_SESSION['buyer_intended']);
+        flash('success', 'Your account is ready. Welcome.');
+        redirect($intended !== '' ? $intended : 'catalogue');
+    }
+
+    // Vetted mode. An address that has already applied is NOT told so.
+    // Otherwise this form becomes a way of asking "does this company already
+    // buy from you?", which is a question a competitor would enjoy being able
+    // to ask. They get the same confirmation page either way and the existing
+    // row is left exactly as it is - in particular a second application cannot
+    // reset a rejected one back to pending.
     if ($existing) {
         redirect('access-requested');
     }
@@ -150,21 +217,26 @@ function account_request_sent(): void
  * is already in the admin panel before this runs, so a mail failure is logged
  * and never shown to the applicant.
  */
-function account_notify_new_request(int $id, array $data): void
+function account_notify_new_request(int $id, array $data, bool $selfRegistered = false): void
 {
     $to = trim((string) setting('enquiry_notify_email', ''));
     if ($to === '' || !filter_var($to, FILTER_VALIDATE_EMAIL)) {
         return;
     }
 
-    $body = "A new trade access request is waiting for review.\n\n"
+    $body = ($selfRegistered
+            ? "Somebody has created an account on the catalogue.\n\n"
+            : "A new trade access request is waiting for review.\n\n")
           . "Name:    {$data['contact_name']}\n"
           . "Company: {$data['company']}\n"
           . "Email:   {$data['email']}\n"
           . 'Phone:   ' . ($data['phone'] ?: '-') . "\n"
           . 'Country: ' . ($data['country'] ?: '-') . "\n\n"
           . ($data['interest'] ? "What they are looking for:\n{$data['interest']}\n\n" : '')
-          . "Nobody can sign in until you approve it. Review it here:\n"
+          . ($selfRegistered
+            ? "They can browse and shortlist. They CANNOT see your prices - "
+            . "that is a switch on their account, which only you can turn on:\n"
+            : "Nobody can sign in until you approve it. Review it here:\n")
           . absolute_url('admin/buyers/' . $id) . "\n";
 
     $host = preg_replace('/[^A-Za-z0-9.\-]/', '', $_SERVER['HTTP_HOST'] ?? 'localhost');
@@ -172,7 +244,9 @@ function account_notify_new_request(int $id, array $data): void
              . 'Reply-To: ' . str_replace(["\r", "\n"], '', $data['email']) . "\r\n"
              . "Content-Type: text/plain; charset=UTF-8\r\n";
 
-    if (!@mail($to, 'Trade access request - ' . $data['company'], $body, $headers)) {
+    $subject = ($selfRegistered ? 'New catalogue account - ' : 'Trade access request - ')
+             . $data['company'];
+    if (!@mail($to, $subject, $body, $headers)) {
         error_log('Access request ' . $id . ' saved but the notification email failed.');
     }
 }

@@ -325,7 +325,29 @@ arrives here as a request, and **nobody can sign in until you approve it**.
 That is the whole point of the feature, so it is worth saying plainly: an
 account with no decision on it is not a half-open door, it is a closed one.
 
-### How it works, start to finish
+### Two ways to hand out accounts
+
+Under **Settings → How people get an account** there are two choices, and they
+change what the rest of this section means.
+
+**Vetted.** Nobody gets in without you. A visitor sends a request, it waits for
+you, and you issue the login yourself. Slower, and right when the catalogue is
+the confidential part.
+
+**Instant.** The visitor fills the same form in, chooses their own password and
+is browsing seconds later. You still see every account and can suspend any of
+them, but nobody waits on you. Right when the account is a doorway rather than
+a decision — you want to know who is looking, not to vet them first.
+
+**Prices are a separate switch either way.** That is deliberate and it matters:
+the moment anybody can create an account, "is signed in" stops telling you
+anything about who somebody is — a competitor signs up in thirty seconds. So
+price visibility is a button on each individual account under **Buyer
+accounts**, and nothing a visitor does can ever set it. Approving a request
+yourself turns it on, because that is you saying "this is a trade customer".
+Signing up never does.
+
+### How it works, start to finish (vetted)
 
 1. A buyer finds **Request trade access** in the footer, or **Trade sign in**
    in the header, and fills in their name, company and email.
@@ -336,6 +358,23 @@ account with no decision on it is not a half-open door, it is a closed one.
 4. Approving generates a username and a password and shows them **on that
    screen, once**. You copy them into an email or a message and send them.
 5. The first time they sign in they are asked to choose their own password.
+
+### How it works, start to finish (instant)
+
+1. A visitor fills in name, company, email and a password of their choosing.
+2. The account exists and they are signed in on the spot. They can browse and
+   shortlist.
+3. You get an email telling you somebody signed up, and they appear under
+   Buyer accounts tagged **created their own account**.
+4. They cannot see prices. If you decide they should, open them and press
+   **Show prices to this buyer**.
+
+Someone signing up with an address that already has an account is told so and
+pointed at the sign-in page. That is the one place where the two modes differ
+on purpose: a vetted *request* from a known address is swallowed silently so
+the form cannot be used to find out who already buys from you, but a *sign-up*
+has to say something, or the visitor is left with an account they think exists
+and cannot use.
 
 ### Why the password is only shown once
 
@@ -366,10 +405,14 @@ This is a setting, and it starts at **nothing extra**. Three choices:
 list it. Signing in gives your regulars their own page with the enquiries they
 have sent you. Nothing is hidden from anybody. Start here.
 
-**Prices.** Approved buyers see the figures from your internal price sheet on
-product pages, marked *indicative*, with your minimum and incoterm beside them.
-Everybody else still sees "Price on request". Two things are worth knowing
+**Prices.** Buyers you have individually switched on see the figures from your
+internal price sheet on product pages, marked *indicative*, with your minimum
+and incoterm beside them. Everybody else — including signed-in buyers you have
+not switched on — still sees "Price on request". Three things are worth knowing
 before you switch this on:
+
+- **Being signed in is not enough.** Price access is granted per account, by
+  you, under Buyer accounts. Suspending someone revokes it as well.
 
 - **Supplier and internal notes are never shown**, to anyone, ever. Those are
   your own commercial relationships and were never part of what a customer sees.

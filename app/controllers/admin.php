@@ -87,6 +87,7 @@ function admin_dispatch(array $s): void
             if ($sub === 'approve')  { admin_buyer_approve();  return; }
             if ($sub === 'status')   { admin_buyer_status();   return; }
             if ($sub === 'reset')    { admin_buyer_reset();    return; }
+            if ($sub === 'pricing')  { admin_buyer_pricing();  return; }
             if ($sub === 'notes')    { admin_buyer_notes();    return; }
             if ($sub === 'delete')   { admin_buyer_delete();   return; }
             if ($sub !== '' && ctype_digit((string) $sub)) {
@@ -624,7 +625,8 @@ function admin_settings(): void
     $keys = ['site_name', 'site_tagline', 'currency_code', 'currency_symbol',
              'per_page', 'price_request_label', 'contact_email', 'contact_phone',
              'enquiry_notify_email', 'enquiry_intro',
-             'buyer_accounts_enabled', 'buyer_gate', 'buyer_intro'];
+             'buyer_accounts_enabled', 'buyer_signup_mode', 'buyer_gate',
+             'buyer_intro'];
 
     // Settings whose value has to be one of a fixed list. The view renders
     // these as dropdowns; the same list is enforced here so a hand-made POST
@@ -633,6 +635,10 @@ function admin_settings(): void
         'buyer_accounts_enabled' => [
             '0' => 'Off - no sign in, no request form',
             '1' => 'On - buyers can request access and sign in',
+        ],
+        'buyer_signup_mode' => [
+            'vetted'  => 'You approve each one - you issue the login yourself',
+            'instant' => 'Visitors create their own account and are let straight in',
         ],
         'buyer_gate' => [
             'none'      => 'Nothing extra - the catalogue stays fully public',
@@ -1311,6 +1317,39 @@ function admin_buyer_status(): void
     flash('success', $status === 'suspended'
         ? 'Access suspended. Their password no longer works.'
         : ($status === 'rejected' ? 'Request rejected.' : 'Moved back to pending.'));
+    redirect('admin/buyers/' . $id);
+}
+
+/**
+ * Turns price visibility on or off for one buyer.
+ *
+ * Separate from approving because self-registered accounts never go through
+ * approval. This is the one place in the whole application that can grant it.
+ */
+function admin_buyer_pricing(): void
+{
+    admin_buyer_guard();
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        redirect('admin/buyers');
+    }
+    csrf_check();
+
+    $id    = (int) ($_POST['id'] ?? 0);
+    $buyer = $id ? BuyerRepository::find($id) : null;
+    if (!$buyer) {
+        flash('error', 'That buyer account no longer exists.');
+        redirect('admin/buyers');
+    }
+    if ($buyer['status'] !== 'approved') {
+        flash('error', 'Only an active account can be given price access.');
+        redirect('admin/buyers/' . $id);
+    }
+
+    $on = (string) ($_POST['pricing_access'] ?? '0') === '1';
+    BuyerRepository::setPricingAccess($id, $on);
+    flash('success', $on
+        ? 'This buyer will now see your prices, once "what signing in unlocks" is set to prices.'
+        : 'Price access removed. They can still browse and shortlist.');
     redirect('admin/buyers/' . $id);
 }
 

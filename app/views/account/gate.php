@@ -1,4 +1,4 @@
-<?php /* Shown instead of the catalogue when Settings has "what signing in
+<?php $bare = true; /* Shown instead of the catalogue when Settings has "what signing in
          unlocks" set to the whole catalogue. A real page rather than a
          redirect, so a product link a buyer shares still lands somewhere that
          explains itself. */ ?>
@@ -6,9 +6,14 @@
   <div class="empty-state">
     <h1>Trade access required</h1>
     <p><?= e(setting('buyer_intro', '')) ?></p>
+    <?php if (BuyerAuth::signupMode() === 'instant'): ?>
+      <p>Creating an account takes about thirty seconds and you can browse and
+         shortlist straight afterwards.</p>
+    <?php endif; ?>
     <p class="form-actions">
       <a class="btn btn-primary btn-lg" href="<?= url('account/login') ?>">Sign in</a>
-      <a class="btn btn-ghost btn-lg" href="<?= url('request-access') ?>">Request access</a>
+      <a class="btn btn-ghost btn-lg" href="<?= url('request-access') ?>">
+        <?= BuyerAuth::signupMode() === 'instant' ? 'Create an account' : 'Request access' ?></a>
     </p>
     <?php if (setting('contact_email') || setting('contact_phone')): ?>
       <p class="hint">Or contact us directly:

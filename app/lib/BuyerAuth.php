@@ -6,8 +6,11 @@
  *
  * - it reads a different session key, so a signed-in buyer is never one
  *   mistyped condition away from being treated as an administrator
- * - a row only becomes usable once someone has approved it by hand, so the
- *   status check is part of signing in rather than an afterthought
+ * - a row is only usable while its status is 'approved', and that is checked on
+ *   every page rather than only at sign-in, so revoking access in the admin
+ *   panel takes effect on the buyer's very next click
+ * - seeing PRICES is a separate grant again (`pricing_access`), because when
+ *   sign-up is instant, "is signed in" stops meaning anything about who they are
  * - it shares the login_attempts table with the admin login, so somebody
  *   guessing passwords cannot get a fresh allowance simply by moving to the
  *   other form
@@ -28,7 +31,8 @@ class BuyerAuth
         }
         $cached = Database::one(
             'SELECT id, username, email, contact_name, company, country, phone,
-                    status, must_change_password, last_login_at, created_at
+                    status, pricing_access, must_change_password, last_login_at,
+                    created_at
                FROM buyer_accounts WHERE id = ?',
             [$_SESSION[self::SESSION_KEY]]
         );
@@ -162,10 +166,32 @@ class BuyerAuth
         return (string) setting('buyer_accounts_enabled', '0') === '1';
     }
 
-    /** True when this visitor may see internal price sheet figures. */
+    /**
+     * 'vetted'  - a visitor sends a request and waits for the owner to approve
+     *             it, and the owner issues the password.
+     * 'instant' - a visitor creates their own account and is signed in at once.
+     */
+    public static function signupMode(): string
+    {
+        $m = (string) setting('buyer_signup_mode', 'vetted');
+        return in_array($m, ['vetted', 'instant'], true) ? $m : 'vetted';
+    }
+
+    /**
+     * True when this visitor may see internal price sheet figures.
+     *
+     * Note the last condition. Being signed in is NOT enough, because in
+     * instant mode anybody can be signed in within thirty seconds - a
+     * competitor included. Prices need `pricing_access`, which only the site
+     * owner can set, from the admin panel, one account at a time.
+     */
     public static function canSeePrices(): bool
     {
-        return self::accountsEnabled() && self::gate() === 'prices' && self::check();
+        if (!self::accountsEnabled() || self::gate() !== 'prices') {
+            return false;
+        }
+        $user = self::user();
+        return $user !== null && (int) $user['pricing_access'] === 1;
     }
 
     /**

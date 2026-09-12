@@ -32,6 +32,10 @@
            alt="<?= e(setting('site_name', 'Catalogue')) ?>" width="1100" height="63">
     </a>
 
+    <?php // $bare is set by the trade-access gate page. A search box that
+          // cannot search, and a category bar listing what you are not allowed
+          // to see, both make the page look broken rather than deliberate. ?>
+    <?php if (empty($bare)): ?>
     <form class="header-search" method="get" action="<?= url('catalogue') ?>" role="search">
       <label class="sr-only" for="hdr-q">Search products</label>
       <input id="hdr-q" type="search" name="q" placeholder="Search products, SKUs, specs&hellip;"
@@ -40,7 +44,9 @@
         <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zm5 12 4 4"/></svg>
       </button>
     </form>
+    <?php endif; ?>
 
+    <?php if (empty($bare)): ?>
     <a class="shortlist-link" href="<?= url('shortlist') ?>">
       <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M4 6h13l-1.2 7H6.4zM6.4 13 4 3H2m5 16.5a1 1 0 1 0 2 0 1 1 0 0 0-2 0m6 0a1 1 0 1 0 2 0 1 1 0 0 0-2 0"/></svg>
       <span class="shortlist-text">Shortlist</span>
@@ -49,6 +55,7 @@
             // number on every page for anyone with items already saved. ?>
       <span class="shortlist-count" data-shortlist-count hidden>0</span>
     </a>
+    <?php endif; ?>
 
     <?php // Only rendered when buyer accounts are switched on in Settings, so
           // turning the feature off leaves the header exactly as it was. ?>
@@ -66,6 +73,7 @@
     </button>
   </div>
 
+  <?php if (empty($bare)): ?>
   <nav id="site-nav" class="site-nav" aria-label="Product categories">
     <div class="wrap nav-inner">
       <a href="<?= url('catalogue') ?>" class="<?= ($_GET['r'] ?? '') === 'catalogue' || ($_GET['r'] ?? '') === '' ? 'is-current' : '' ?>">All products</a>
@@ -78,12 +86,13 @@
       <?php endforeach; ?>
     </div>
   </nav>
+  <?php endif; ?>
 </header>
 
 <?php // Origins get their own strip rather than a slot in the category bar:
       // they are a different axis, and mixing them into one row makes a
       // country read as another product type. ?>
-<?php $navOrigins = OriginRepository::navigation(); ?>
+<?php $navOrigins = empty($bare) ? OriginRepository::navigation() : []; ?>
 <?php if ($navOrigins): ?>
 <div class="origin-bar">
   <div class="wrap origin-inner">
@@ -121,7 +130,8 @@
     <div class="footer-links">
       <a href="<?= url('catalogue') ?>">Catalogue</a>
       <?php if (BuyerAuth::accountsEnabled() && !BuyerAuth::check()): ?>
-        <a href="<?= url('request-access') ?>">Trade access</a>
+        <a href="<?= url('request-access') ?>"><?=
+          BuyerAuth::signupMode() === 'instant' ? 'Create an account' : 'Trade access' ?></a>
       <?php endif; ?>
       <a href="<?= url('admin') ?>">Admin</a>
     </div>

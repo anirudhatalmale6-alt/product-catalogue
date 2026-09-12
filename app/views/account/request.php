@@ -1,17 +1,18 @@
 <?php
 /** @var array $errors @var array $old */
 $ov = fn(string $k, string $default = '') => (string) ($old[$k] ?? $default);
+$instant = BuyerAuth::signupMode() === 'instant';
 ?>
 <div class="wrap narrow-page">
 
 <div class="page-head">
-  <h1>Request trade access</h1>
+  <h1><?= $instant ? 'Create your account' : 'Request trade access' ?></h1>
   <p class="page-sub"><?= e(setting('buyer_intro', '')) ?></p>
 </div>
 
 <?php if (!empty($errors)): ?>
   <div class="alert alert-error" role="alert">
-    <p><strong>Your request was not sent.</strong></p>
+    <p><strong><?= $instant ? 'Your account was not created.' : 'Your request was not sent.' ?></strong></p>
     <ul>
       <?php foreach ($errors as $msg): ?><li><?= e($msg) ?></li><?php endforeach; ?>
     </ul>
@@ -40,7 +41,9 @@ $ov = fn(string $k, string $default = '') => (string) ($old[$k] ?? $default);
       <label for="email">Work email <span class="req" aria-hidden="true">*</span></label>
       <input id="email" name="email" type="email" required
              autocomplete="email" value="<?= e($ov('email')) ?>">
-      <p class="hint">Your login will be sent to this address once your request is approved.</p>
+      <p class="hint"><?= $instant
+        ? 'You will sign in with this address.'
+        : 'Your login will be sent to this address once your request is approved.' ?></p>
       <?php if (isset($errors['email'])): ?><p class="err"><?= e($errors['email']) ?></p><?php endif; ?>
     </div>
 
@@ -57,11 +60,35 @@ $ov = fn(string $k, string $default = '') => (string) ($old[$k] ?? $default);
     </div>
   </div>
 
+  <?php if ($instant): ?>
+    <?php /* autocomplete="new-password" is what tells a password manager and
+             the browser's own autofill to offer to generate and save one, which
+             is the whole reason this is a plain form rather than anything
+             clever. */ ?>
+    <div class="form-grid">
+      <div class="field <?= isset($errors['password']) ? 'has-error' : '' ?>">
+        <label for="password">Choose a password <span class="req" aria-hidden="true">*</span></label>
+        <input id="password" name="password" type="password" required
+               minlength="10" autocomplete="new-password">
+        <p class="hint">At least 10 characters.</p>
+        <?php if (isset($errors['password'])): ?><p class="err"><?= e($errors['password']) ?></p><?php endif; ?>
+      </div>
+      <div class="field <?= isset($errors['confirm_password']) ? 'has-error' : '' ?>">
+        <label for="confirm_password">Repeat it <span class="req" aria-hidden="true">*</span></label>
+        <input id="confirm_password" name="confirm_password" type="password" required
+               autocomplete="new-password">
+        <?php if (isset($errors['confirm_password'])): ?><p class="err"><?= e($errors['confirm_password']) ?></p><?php endif; ?>
+      </div>
+    </div>
+  <?php endif; ?>
+
   <div class="field">
     <label for="interest">What are you looking to source?</label>
     <textarea id="interest" name="interest" rows="4"
               placeholder="Product lines, rough volumes, destination market&hellip;"><?= e($ov('interest')) ?></textarea>
-    <p class="hint">Not required, but it helps us review your request faster.</p>
+    <p class="hint"><?= $instant
+      ? 'Not required. It helps us point you at the right lines.'
+      : 'Not required, but it helps us review your request faster.' ?></p>
   </div>
 
   <?php /* Honeypot. Hidden from people, tempting to a bot that fills in every
@@ -73,7 +100,8 @@ $ov = fn(string $k, string $default = '') => (string) ($old[$k] ?? $default);
   </div>
 
   <div class="form-actions">
-    <button type="submit" class="btn btn-primary btn-lg">Send request</button>
+    <button type="submit" class="btn btn-primary btn-lg"><?=
+      $instant ? 'Create account' : 'Send request' ?></button>
     <p class="hint">Already have a login?
       <a href="<?= url('account/login') ?>">Sign in here</a>.</p>
   </div>

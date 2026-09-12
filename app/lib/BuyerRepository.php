@@ -2,10 +2,14 @@
 /**
  * Buyer account applications and the accounts they turn into.
  *
- * The vetting step is the point of this table, so the writes are deliberately
- * narrow: an application can be created by the public form, and after that only
- * the admin panel can change its status or its password. There is no method
- * here that lets a visitor promote themselves.
+ * The writes are deliberately narrow. The public form can do exactly two
+ * things - createApplication() in vetted mode, selfRegister() in instant mode -
+ * and after that only the admin panel can change an account's status or its
+ * password.
+ *
+ * Neither public method can grant `pricing_access`. That is the one thing a
+ * visitor must never be able to give themselves, and keeping it out of both of
+ * them is what makes that true by construction rather than by remembering.
  */
 class BuyerRepository
 {
@@ -99,6 +103,54 @@ class BuyerRepository
     }
 
     /**
+     * Creates an account for a visitor who signed themselves up.
+     *
+     * Only reachable while Settings has sign-up set to 'instant'. The account
+     * is usable immediately - that is the point of the mode - but note what it
+     * deliberately does NOT do:
+     *
+     * - `pricing_access` stays 0. Anybody can sign up, so being signed in
+     *   cannot be what unlocks your commercial figures.
+     * - `must_change_password` is 0, because they chose the password.
+     * - `reviewed_at` stays NULL, which is how the admin list tells a
+     *   self-registered account from one you approved.
+     *
+     * @return int the new id
+     */
+    public static function selfRegister(array $d, string $password): int
+    {
+        $id = Database::insert(
+            'INSERT INTO buyer_accounts
+                (email, contact_name, company, phone, country, interest,
+                 password_hash, status, pricing_access, must_change_password)
+             VALUES (?, ?, ?, ?, ?, ?, ?, \'approved\', 0, 0)',
+            [
+                mb_substr(trim($d['email']), 0, 190),
+                mb_substr(trim($d['contact_name']), 0, 120),
+                self::nullable($d['company'] ?? '', 160),
+                self::nullable($d['phone'] ?? '', 60),
+                self::nullable($d['country'] ?? '', 120),
+                self::nullable($d['interest'] ?? '', 4000),
+                password_hash($password, PASSWORD_DEFAULT),
+            ]);
+
+        // A username is still assigned so the admin screens and the sign-in
+        // form behave identically for both kinds of account. They will
+        // normally sign in with their email address.
+        Database::run('UPDATE buyer_accounts SET username = ? WHERE id = ?',
+            [self::uniqueUsername(self::suggestUsername($d), $id), $id]);
+
+        return $id;
+    }
+
+    /** Turn price visibility on or off for one account. Owner-only. */
+    public static function setPricingAccess(int $id, bool $on): void
+    {
+        Database::run('UPDATE buyer_accounts SET pricing_access = ? WHERE id = ?',
+            [$on ? 1 : 0, $id]);
+    }
+
+    /**
      * Approves an application and issues credentials.
      *
      * The plain password is RETURNED, never stored - the caller shows it to the
@@ -121,10 +173,14 @@ class BuyerRepository
 
         $password = self::generatePassword();
 
+        // Approving from the admin panel is the site owner saying "this is a
+        // trade customer", so it grants price visibility as well. Nothing a
+        // visitor can do reaches this method.
         Database::run(
             "UPDATE buyer_accounts
                 SET username = ?, password_hash = ?, status = 'approved',
-                    must_change_password = 1, reviewed_at = NOW()
+                    pricing_access = 1, must_change_password = 1,
+                    reviewed_at = NOW()
               WHERE id = ?",
             [$username, password_hash($password, PASSWORD_DEFAULT), $id]);
 
@@ -167,9 +223,13 @@ class BuyerRepository
         if ($status === 'approved') {
             throw new InvalidArgumentException('Use approve() so credentials are issued.');
         }
+        // pricing_access goes with it. "Revoked" that leaves a flag set which
+        // silently comes back to life on reinstatement is not revoked.
         Database::run(
             'UPDATE buyer_accounts
-                SET status = ?, password_hash = NULL, reviewed_at = NOW() WHERE id = ?',
+                SET status = ?, password_hash = NULL, pricing_access = 0,
+                    reviewed_at = NOW()
+              WHERE id = ?',
             [$status, $id]);
     }
 

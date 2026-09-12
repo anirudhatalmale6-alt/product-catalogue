@@ -41,4 +41,4 @@ CREATE TABLE IF NOT EXISTS buyer_accounts (
 INSERT IGNORE INTO settings (setting_key, setting_value) VALUES
     ('buyer_accounts_enabled', '1'),
     ('buyer_gate',      'none'),
-    ('buyer_intro',     'Trade access is for verified buyers. Tell us who you are and we will review your request and send you a login.');
+    ('buyer_intro',     'The catalogue is open to trade buyers with an account. Tell us who you are and you can browse everything and build a shortlist.');

@@ -14,7 +14,11 @@ $tagClass = ['pending' => 'tag-new', 'approved' => 'tag-ok',
     <p class="adm-sub">
       <span class="tag <?= e($tagClass[$buyer['status']] ?? 'tag-muted') ?>">
         <?= e($label[$buyer['status']] ?? $buyer['status']) ?></span>
-      &middot; requested <?= e(date('j M Y \a\t H:i', strtotime((string) $buyer['created_at']))) ?>
+      &middot; <?= $buyer['reviewed_at'] ? 'requested' : 'signed up' ?>
+      <?= e(date('j M Y \a\t H:i', strtotime((string) $buyer['created_at']))) ?>
+      <?php if (!$buyer['reviewed_at'] && $buyer['status'] === 'approved'): ?>
+        &middot; <span class="tag tag-info">created their own account</span>
+      <?php endif; ?>
       <?php if ($buyer['last_login_at']): ?>
         &middot; last signed in <?= e(date('j M Y', strtotime((string) $buyer['last_login_at']))) ?>
       <?php endif; ?>
@@ -143,6 +147,32 @@ $tagClass = ['pending' => 'tag-new', 'approved' => 'tag-ok',
     <?php endif; ?>
 
     <?php if ($buyer['status'] === 'approved'): ?>
+      <section class="panel">
+        <div class="panel-body">
+          <h2>Prices</h2>
+          <?php if ((int) $buyer['pricing_access'] === 1): ?>
+            <p>This buyer <strong>can</strong> see your price sheet figures on
+               product pages.</p>
+          <?php else: ?>
+            <p>This buyer can browse and shortlist but <strong>cannot</strong>
+               see any prices.</p>
+          <?php endif; ?>
+          <form method="post" action="<?= url('admin/buyers/pricing') ?>">
+            <?= csrf_field() ?>
+            <input type="hidden" name="id" value="<?= (int) $buyer['id'] ?>">
+            <input type="hidden" name="pricing_access"
+                   value="<?= (int) $buyer['pricing_access'] === 1 ? '0' : '1' ?>">
+            <button type="submit" class="btn btn-block"><?=
+              (int) $buyer['pricing_access'] === 1
+                ? 'Stop showing prices to this buyer'
+                : 'Show prices to this buyer' ?></button>
+          </form>
+          <p class="hint">This only has any visible effect while
+             <a href="<?= url('admin/settings') ?>">what signing in unlocks</a>
+             is set to prices.</p>
+        </div>
+      </section>
+
       <section class="panel">
         <div class="panel-body">
           <h2>Manage access</h2>

@@ -163,10 +163,14 @@ assumption that it is:
   a product replaces its placeholder.
 - **No cart, checkout or payments.** Buyers shortlist items and send an
   enquiry; you quote them. Nothing is bought or paid for online.
-- **Buyer accounts are vetted, not self-service.** The public form only ever
-  creates a *request*. A username and password are issued by hand from the
-  admin panel, and the generated password is shown once and stored only as a
-  hash. Nobody signs themselves up.
+- **Buyer accounts come in two modes**, set under Settings. *Vetted* — the
+  public form only creates a request, and a username and password are issued by
+  hand from the admin panel (shown once, stored only as a hash). *Instant* — a
+  visitor chooses their own password and is signed in immediately.
+- **Price visibility is a separate per-account grant either way.** Once anybody
+  can create an account, "is signed in" says nothing about who somebody is, so
+  `pricing_access` is a column only the admin panel can set. Neither public
+  sign-up path can reach it, and suspending an account clears it.
 - **Enquiry email is optional and unproven on your host.** Enquiries always
   save to the admin panel. If you set a notification address under Settings, a
   copy is emailed with PHP's `mail()`, which depends entirely on the host

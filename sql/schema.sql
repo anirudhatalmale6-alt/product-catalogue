@@ -283,6 +283,11 @@ CREATE TABLE buyer_accounts (
     password_hash  VARCHAR(255) NULL,
     status         ENUM('pending','approved','rejected','suspended')
                    NOT NULL DEFAULT 'pending',
+    -- Separate from status on purpose. Once visitors can create their own
+    -- account, "signed in" cannot mean "may see our prices" - a competitor
+    -- would just sign up. This is granted per account by the site owner and is
+    -- never set by anything a visitor does.
+    pricing_access TINYINT(1) NOT NULL DEFAULT 0,
     admin_notes    TEXT         NULL,
     must_change_password TINYINT(1) NOT NULL DEFAULT 1,
     last_login_at  DATETIME     NULL,
@@ -333,8 +338,9 @@ INSERT INTO settings (setting_key, setting_value) VALUES
     ('enquiry_notify_email', ''),
     ('enquiry_intro',   'Tell us where the goods are going and roughly what volume you need, and we will come back with pricing and lead times.'),
     ('buyer_accounts_enabled', '1'),
+    ('buyer_signup_mode', 'vetted'),
     ('buyer_gate',      'none'),
-    ('buyer_intro',     'Trade access is for verified buyers. Tell us who you are and we will review your request and send you a login.');
+    ('buyer_intro',     'The catalogue is open to trade buyers with an account. Tell us who you are and you can browse everything and build a shortlist.');
 
 -- ---------------------------------------------------------------------------
 -- No origins, categories or products are seeded here. This file is structure
