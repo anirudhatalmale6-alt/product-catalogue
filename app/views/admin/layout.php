@@ -14,7 +14,7 @@
 <header class="adm-top">
   <a class="adm-brand" href="<?= url('admin') ?>">
     <img class="adm-mark" src="<?= asset('img/ds-logo.png') ?>"
-         alt="<?= e(setting('site_name', 'Catalogue')) ?>" width="1100" height="63">
+         alt="<?= e(setting('site_name', 'Catalogue')) ?>" width="1317" height="94">
     <span>admin</span>
   </a>
   <button class="adm-nav-toggle" type="button" aria-expanded="false" aria-controls="adm-side">Menu</button>

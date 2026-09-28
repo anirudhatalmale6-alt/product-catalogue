@@ -29,7 +29,7 @@
             // ds-logo.png is the light-on-dark lockup; ds-logo-dark.png is the
             // same wordmark with the black ink, for any light surface. ?>
       <img class="brand-logo" src="<?= asset('img/ds-logo.png') ?>"
-           alt="<?= e(setting('site_name', 'Catalogue')) ?>" width="1100" height="63">
+           alt="<?= e(setting('site_name', 'Catalogue')) ?>" width="1317" height="94">
     </a>
 
     <?php // $bare is set by the trade-access gate page. A search box that
@@ -116,7 +116,7 @@
   <div class="wrap footer-inner">
     <div>
       <img class="footer-logo" src="<?= asset('img/ds-logo.png') ?>"
-           alt="<?= e(setting('site_name', 'Catalogue')) ?>" width="1100" height="63">
+           alt="<?= e(setting('site_name', 'Catalogue')) ?>" width="1317" height="94">
       <p><?= e(setting('site_tagline', '')) ?></p>
     </div>
     <div class="footer-contact">
