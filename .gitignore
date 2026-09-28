@@ -22,3 +22,6 @@ public/uploads/products/*
 Thumbs.db
 .idea/
 .vscode/
+
+# Scratch state written by the fake Shopify used in the tests.
+shots/.mock_shopify_state

@@ -436,6 +436,69 @@ back on brings everything back exactly as it was.
 
 ---
 
+## Shopify
+
+Shopify is your consumer shop. The catalogue is your trade catalogue. They are
+separate on purpose, and this screen is the bridge between them.
+
+**Nothing here can change your Shopify store.** The connection is read-only in
+both directions that matter: the key it uses has read permissions only, and
+there is no code in this catalogue that writes to Shopify. The worst a mistake
+on this screen can do is show the wrong figure on a catalogue page.
+
+### Getting connected
+
+Two values, and they go into a file on the server rather than into this panel,
+because the token is a key to your shop and everything in this panel ends up in
+every database backup. Send them over and they take a minute to put in.
+
+1. Your store address, the `something.myshopify.com` one.
+2. An Admin API access token: in Shopify, **Settings** → **Apps and sales
+   channels** → **Develop apps** → **Create an app** → **Configure Admin API
+   scopes** → tick `read_products` and `read_inventory` → **Save** →
+   **Install app** → **Reveal token**.
+
+Once that is in, a **Shopify** entry appears in the left menu.
+
+### Linking a product
+
+A sync copies your Shopify products, prices and stock into the panel. Then you
+tell it which Shopify product is which catalogue product.
+
+That link is made by hand, once, per product, and the reason is worth knowing:
+none of your 197 catalogue products has a SKU, so there is nothing for the two
+systems to match themselves on. Matching by name instead works right up until
+somebody renames something in Shopify, at which point that product quietly
+stops updating and nobody notices. Linking by hand stores Shopify's own id,
+which survives a rename on either side.
+
+Where the names happen to be identical, the screen offers those as
+**possible matches** and you can accept them all in one click. It offers; it
+never links on its own.
+
+### What appears on the site
+
+A catalogue product that is linked, and that Shopify says is on sale right now,
+gains a **Buy online** box on its page: the retail price, a button through to
+your Shopify store, and a line making clear it is single units rather than a
+wholesale quote. The shortlist and enquiry route stays exactly where it was
+underneath, because they are two different customers.
+
+No buy button appears if the product is not linked, if Shopify has it at zero
+stock with overselling switched off, if it is still a draft in Shopify, or if
+the product has been deleted from Shopify since the last sync.
+
+### Keeping it current
+
+The sync runs by itself every night. **Sync from Shopify now** does it
+immediately, which is what you want after adding products to Shopify.
+
+If Shopify is unreachable when the sync runs, nothing changes - the catalogue
+keeps showing the last figures it had rather than emptying itself.
+
+
+---
+
 ## Settings
 
 **Settings** changes site-wide values without touching any code:

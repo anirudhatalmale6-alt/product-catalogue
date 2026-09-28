@@ -850,3 +850,22 @@ p  { margin: 0 0 1em; }
 /* "Create an account" is long enough to wrap into two lines in the footer
    column, which reads as two separate links. */
 .footer-links a { white-space: nowrap; }
+
+/* The consumer buy route. Boxed and set apart from the enquiry button on
+   purpose: a single retail unit and a wholesale container are two different
+   transactions and must not read as one choice with two buttons. */
+.buy-online {
+  margin: .2rem 0 1rem; padding: .8rem .9rem;
+  background: var(--surface-2); border: 1px solid var(--carbon);
+  border-left: 3px solid var(--red); border-radius: var(--radius);
+}
+.buy-online-head {
+  margin: 0 0 .35rem; font-size: .68rem; font-weight: 700; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--ink-faint);
+}
+.buy-online-price { margin: 0 0 .6rem; font-size: 1.3rem; font-weight: 700; color: var(--white); }
+.buy-online-price .unit {
+  font-size: .62rem; font-weight: 400; letter-spacing: .04em;
+  text-transform: uppercase; color: var(--ink-faint); margin-left: .45rem;
+}
+.buy-online-note { margin: .55rem 0 0; font-size: .76rem; color: var(--ink-faint); line-height: 1.5; }

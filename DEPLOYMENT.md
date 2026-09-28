@@ -365,6 +365,38 @@ line running the command above works. Failing that, open the `.sql` file and
 paste it into phpMyAdmin, then add the filename to `schema_migrations`
 yourself so the tool does not try to run it again.
 
+## Keeping Shopify in step
+
+Shopify is optional. Nothing below applies unless `app/config.php` has a
+`shopify` block with a shop domain and an Admin API token.
+
+The catalogue only ever READS from Shopify, so the token wants read scopes and
+nothing else - `read_products` and `read_inventory`. There is no code in this
+application that writes to a Shopify store.
+
+Run the sync by hand from the admin panel (**Shopify -> Sync from Shopify now**),
+and on a schedule with cron:
+
+```
+17 3 * * *  cd /home/USER/catalogue && /usr/local/bin/php tools/shopify_sync.php >> logs/shopify.log 2>&1
+```
+
+Once a night is enough for a catalogue. It exits non-zero on failure, so a cron
+configured to mail on failure stays quiet while things work.
+
+Things worth knowing when it misbehaves:
+
+- **A failed sync changes nothing.** If Shopify errors half way through, the
+  cached copy is left exactly as it was rather than half rewritten. The same
+  applies if Shopify answers successfully with zero products, which is far more
+  likely to be a wrong shop domain than a genuinely empty store.
+- **A product deleted in Shopify loses its buy button but keeps its link.** The
+  admin screen then shows "no longer in Shopify" against it, which is more use
+  than silently forgetting the two were ever connected.
+- **Only the first variant is read.** A Shopify product sold in three sizes
+  shows the first one's price on the catalogue. It is a pointer to the shop, not
+  a quote.
+
 ## PHP settings for uploads
 
 The application limits images to 6 MB (`uploads.max_bytes` in

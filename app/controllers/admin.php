@@ -97,6 +97,14 @@ function admin_dispatch(array $s): void
             admin_buyer_list();
             return;
 
+        case 'shopify':
+            $sub = $s[1] ?? '';
+            if ($sub === 'sync')        { admin_shopify_sync(); return; }
+            if ($sub === 'link')        { admin_shopify_link(); return; }
+            if ($sub === 'suggestions') { admin_shopify_accept_suggestions(); return; }
+            admin_shopify();
+            return;
+
         case 'settings':
             admin_settings();
             return;
@@ -1383,4 +1391,98 @@ function admin_buyer_delete(): void
         flash('success', 'Buyer account deleted.');
     }
     redirect('admin/buyers');
+}
+
+// ---------------------------------------------------------------------------
+// Shopify
+//
+// Shopify owns the consumer shop; this application only ever READS from it.
+// There is no code here that writes to Shopify and the token it uses should be
+// read-only, so the worst a bug in this section can do is show the wrong
+// figure on a catalogue page.
+// ---------------------------------------------------------------------------
+
+function admin_shopify(): void
+{
+    $client = new ShopifyClient();
+
+    view('admin/shopify', [
+        'title'       => 'Shopify',
+        'client'      => $client,
+        'configured'  => $client->isConfigured(),
+        'connection'  => $client->isConfigured() ? $client->checkConnection() : null,
+        'cached'      => ShopifyRepository::count(),
+        'lastSync'    => ShopifyRepository::lastSyncedAt(),
+        'linked'      => ShopifyRepository::linkedProducts(),
+        'suggestions' => ShopifyRepository::suggestLinks(),
+        'shopifyRows' => ShopifyRepository::all(trim((string) ($_GET['q'] ?? ''))),
+        'unlinked'    => ShopifyRepository::unlinkedProducts(),
+        'q'           => trim((string) ($_GET['q'] ?? '')),
+        'report'      => $_SESSION['shopify_report'] ?? null,
+    ], 'admin/layout');
+
+    unset($_SESSION['shopify_report']);
+}
+
+function admin_shopify_sync(): void
+{
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        redirect('admin/shopify');
+    }
+    csrf_check();
+
+    $report = ShopifySync::run();
+    $_SESSION['shopify_report'] = $report;
+    flash($report['ok'] ? 'success' : 'error', $report['message']);
+    redirect('admin/shopify');
+}
+
+function admin_shopify_link(): void
+{
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        redirect('admin/shopify');
+    }
+    csrf_check();
+
+    $productId = (int) ($_POST['product_id'] ?? 0);
+    $shopifyId = trim((string) ($_POST['shopify_product_id'] ?? ''));
+    $shopifyId = $shopifyId === '' ? null : (int) $shopifyId;
+
+    if (!$productId || !ProductRepository::find($productId)) {
+        flash('error', 'That catalogue product no longer exists.');
+        redirect('admin/shopify');
+    }
+
+    $error = ShopifyRepository::link($productId, $shopifyId);
+    if ($error !== null) {
+        flash('error', $error);
+    } else {
+        flash('success', $shopifyId === null
+            ? 'Unlinked. The buy button is gone from that product.'
+            : 'Linked. The buy button appears on that product straight away.');
+    }
+    redirect('admin/shopify');
+}
+
+/** Applies every exact-name suggestion in one go, after the owner asks for it. */
+function admin_shopify_accept_suggestions(): void
+{
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        redirect('admin/shopify');
+    }
+    csrf_check();
+
+    $done = 0;
+    $failed = 0;
+    foreach (ShopifyRepository::suggestLinks() as $s) {
+        $err = ShopifyRepository::link((int) $s['product_id'], (int) $s['shopify_product_id']);
+        if ($err === null) {
+            $done++;
+        } else {
+            $failed++;
+        }
+    }
+    flash($done ? 'success' : 'error',
+        $done . ' product(s) linked' . ($failed ? ", {$failed} could not be" : '') . '.');
+    redirect('admin/shopify');
 }

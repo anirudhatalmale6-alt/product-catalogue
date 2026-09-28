@@ -113,6 +113,30 @@ $showWeightRow = $product['weight_grams'] !== null && !$hasWeightSpec;
         <?php endif; ?>
       </p>
 
+      <?php /* The consumer route, shown only where this product has been linked
+               to a Shopify item by hand AND Shopify says it is on sale right
+               now. Kept visually separate from the enquiry route above, because
+               they are two different transactions: one is a single unit paid
+               for on a card, the other is a container quoted per enquiry. A
+               buyer who confuses the two will be unhappy either way. */ ?>
+      <?php if (!empty($shopify) && !empty($shopify['is_available'])): ?>
+        <div class="buy-online">
+          <p class="buy-online-head">Available to buy online</p>
+          <?php if (setting('shopify_show_price', '1') === '1' && $shopify['price'] !== null): ?>
+            <p class="buy-online-price">
+              <?= e(($shopify['currency'] ?: '') . ' ' . number_format((float) $shopify['price'], 2)) ?>
+              <span class="unit">per unit, retail</span>
+            </p>
+          <?php endif; ?>
+          <a class="btn btn-primary btn-lg btn-block" rel="noopener" target="_blank"
+             href="<?= e($shopify['online_url']) ?>">
+            <?= e(setting('shopify_buy_label', 'Buy online')) ?>
+          </a>
+          <p class="buy-online-note">Single units, shipped from our online store.
+             For wholesale volumes use the shortlist below and we will quote you.</p>
+        </div>
+      <?php endif; ?>
+
       <button type="button" class="btn btn-primary btn-shortlist-lg"
               data-shortlist="<?= (int) $product['id'] ?>" aria-pressed="false">
         <span class="sl-add">Add to shortlist</span>

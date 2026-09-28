@@ -59,6 +59,12 @@ require APP_DIR . '/lib/EnquiryRepository.php';
 // that "which file reads product_pricing" stays a question you answer by
 // grepping for the class name, not by tracing conditional includes.
 require APP_DIR . '/lib/PricingRepository.php';
+// Shopify is optional and read-only. Loaded always so "which file talks to
+// Shopify" stays a grep for the class name rather than a trace through
+// conditional includes - the same reasoning as PricingRepository above.
+require APP_DIR . '/lib/ShopifyClient.php';
+require APP_DIR . '/lib/ShopifyRepository.php';
+require APP_DIR . '/lib/ShopifySync.php';
 
 Database::configure($config['db']);
 

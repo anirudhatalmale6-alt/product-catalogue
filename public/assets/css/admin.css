@@ -577,3 +577,11 @@ a.stat:hover { text-decoration: none; border-color: var(--accent); }
 
 .rich { white-space: normal; line-height: 1.6; }
 .row-actions a { font-size: .82rem; font-weight: 600; }
+
+/* Shopify linking: the select and its button sit on one line in a table cell. */
+.shopify-link-form { display: flex; gap: .4rem; align-items: center; }
+.shopify-link-form select {
+  padding: .3rem .4rem; border: 1px solid var(--line); border-radius: var(--radius-sm);
+  font: inherit; font-size: .82rem; max-width: 14rem;
+}
+.btn-sm { padding: .3rem .6rem; font-size: .76rem; }

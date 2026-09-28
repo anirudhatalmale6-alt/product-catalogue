@@ -205,6 +205,13 @@ function catalogue_show(string $slug): void
         // method as well as implied here, so this line cannot leak a figure by
         // being copied somewhere without its condition.
         'buyerPrice' => PricingRepository::forApprovedBuyer((int) $product['id']),
+        // The consumer side. Null unless this product has been linked to a
+        // Shopify item by hand AND Shopify last told us it was on sale. This
+        // is public information - it is the price on the shop anyone can see -
+        // so it is not gated the way the B2B price sheet is.
+        'shopify'    => setting('shopify_enabled', '0') === '1'
+                        ? ShopifyRepository::forProduct((int) $product['id'])
+                        : null,
         'metaDescription' => $product['short_description'] ?: setting('site_tagline', ''),
     ]);
 }

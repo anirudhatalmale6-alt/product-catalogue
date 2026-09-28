@@ -21,6 +21,76 @@ if (PHP_SAPI !== 'cli') {
 
 require dirname(__DIR__) . '/app/bootstrap.php';
 
+/**
+ * Split a migration file into statements.
+ *
+ * The first version of this split on "semicolon followed by a newline", which
+ * quietly assumed one statement per line. A migration written as
+ *
+ *     PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+ *
+ * therefore arrived at the driver as one string and failed with a syntax error
+ * pointing at the middle of the line - a confusing message for a file that is
+ * perfectly valid SQL. So this walks the text instead: it splits on every
+ * semicolon that is not inside a quoted string, and strips `--` comments,
+ * which is the only comment style these files use.
+ *
+ * @return string[] non-empty statements, in order
+ */
+function split_sql(string $sql): array
+{
+    $out = [];
+    $cur = '';
+    $len = strlen($sql);
+    $quote = null;        // the quote character we are inside, or null
+    $inComment = false;
+
+    for ($i = 0; $i < $len; $i++) {
+        $ch = $sql[$i];
+
+        if ($inComment) {
+            if ($ch === "\n") {
+                $inComment = false;
+                $cur .= $ch;
+            }
+            continue;
+        }
+
+        if ($quote !== null) {
+            $cur .= $ch;
+            if ($ch === '\\' && $i + 1 < $len) {   // escaped character
+                $cur .= $sql[++$i];
+            } elseif ($ch === $quote) {
+                $quote = null;
+            }
+            continue;
+        }
+
+        if ($ch === '-' && ($sql[$i + 1] ?? '') === '-') {
+            $inComment = true;
+            continue;
+        }
+        if ($ch === "'" || $ch === '"' || $ch === '`') {
+            $quote = $ch;
+            $cur .= $ch;
+            continue;
+        }
+        if ($ch === ';') {
+            if (trim($cur) !== '') {
+                $out[] = trim($cur);
+            }
+            $cur = '';
+            continue;
+        }
+        $cur .= $ch;
+    }
+
+    if (trim($cur) !== '') {
+        $out[] = trim($cur);
+    }
+    return $out;
+}
+
 $apply = in_array('--apply', $argv, true);
 $dir   = dirname(__DIR__) . '/sql/migrations';
 
@@ -62,20 +132,12 @@ foreach ($pending as $f) {
         continue;
     }
 
-    $sql = file_get_contents($f);
-    // Split on semicolons at end of line. The migration files are hand-written
-    // and contain no stored routines or string literals with semicolons in
-    // them, so this is sufficient here and stays readable.
-    $statements = array_filter(array_map('trim', preg_split('/;\s*[\r\n]/', $sql)));
+    $sql        = file_get_contents($f);
+    $statements = split_sql($sql);
 
     $ran = 0;
     foreach ($statements as $stmt) {
-        // Strip comment-only fragments.
-        $bare = trim(preg_replace('/^\s*--.*$/m', '', $stmt));
-        if ($bare === '') {
-            continue;
-        }
-        Database::run(rtrim($stmt, "; \t\n\r"));
+        Database::run($stmt);
         $ran++;
     }
 

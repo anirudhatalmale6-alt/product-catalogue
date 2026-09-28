@@ -51,6 +51,12 @@
         <span class="ico" aria-hidden="true">&#9787;</span> Buyer accounts
         <?php if ($pendingBuyers): ?><span class="adm-badge"><?= $pendingBuyers ?></span><?php endif; ?></a>
     <?php endif; ?>
+    <?php // Only while a shop domain is configured, so the menu never offers a
+          // screen that can only say "not connected". ?>
+    <?php if (config('shopify.shop')): ?>
+      <a href="<?= url('admin/shopify') ?>" class="<?= str_starts_with($r, 'admin/shopify') ? 'is-current' : '' ?>">
+        <span class="ico" aria-hidden="true">&#9679;</span> Shopify</a>
+    <?php endif; ?>
     <a href="<?= url('admin/categories') ?>" class="<?= str_starts_with($r, 'admin/categories') ? 'is-current' : '' ?>">
       <span class="ico" aria-hidden="true">&#9636;</span> Categories</a>
     <a href="<?= url('admin/origins') ?>" class="<?= str_starts_with($r, 'admin/origins') ? 'is-current' : '' ?>">
